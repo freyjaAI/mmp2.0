@@ -1,0 +1,28 @@
+# MMP 2.0 - Risk Analytics Platform
+# Python Dependencies for Week 2 Implementation
+
+# Core Database & ORM
+psycopg2-binary==2.9.9
+
+# FastAPI & Web Framework
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+pydantic==2.7.1
+
+# Data Processing
+pyspark==3.5.1
+pandas==2.2.2
+
+# Graph Database
+neo4j==5.21.0
+
+# Configuration
+python-dotenv==1.0.1
+
+# CLI & Display (optional but useful)
+typer==0.12.3
+rich==13.7.1
+
+# Testing (optional)
+pytest==8.2.0
+pytest-asyncio==0.23.6
