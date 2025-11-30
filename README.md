@@ -59,20 +59,6 @@ mmp2.0/
 └── scripts/               # Setup and utility scripts
 ```
 
-## 🚀 Week 1 Milestones (COMPLETED)
-
-✅ Postgres + graph schema live  
-✅ Blocking keys generated for every new person record  
-✅ Sub-50ms API endpoint  
-✅ Embeddable widget for first pilot customer
-
-## 📅 Week 2 Roadmap (NEXT)
-
-- [ ] Deterministic pair-scorer in pure SQL (5M recs/min on laptop)
-- [ ] Auto-apply SAME_ENTITY edges into Neo4j
-- [ ] Nightly connected-components → update canon tables
-- [ ] Ingest first free criminal source (Florida arrests FTP)
-- [ ] Criminal flag appears in API response
 
 ## 🛠️ Tech Stack
 
