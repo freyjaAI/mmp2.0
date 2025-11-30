@@ -12,6 +12,7 @@ import psycopg2.extras
 import os
 from datetime import datetime
 import json
+from api.clear_clone import router as clear_router
 
 app = FastAPI(
     title="MMP 2.0 Risk Analytics API",
@@ -27,6 +28,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include CLEAR clone router
+app.include_router(clear_router)
 
 # Database connection
 def get_db_connection():
