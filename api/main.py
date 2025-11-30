@@ -32,6 +32,13 @@ app.add_middleware(
 # Include CLEAR clone router
 app.include_router(clear_router)
 
+# Seed endpoint (temporary)
+@app.get("/seed")
+def seed_database():
+    from api import init_db
+    init_db.init()
+    return {"status": "success", "message": "Database seeded"}
+
 # Database connection
 def get_db_connection():
     """Get PostgreSQL database connection"""
