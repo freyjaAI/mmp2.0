@@ -1,6 +1,5 @@
 #!/usr/bin/
-print("🚀 Starting database initialization...", flush=True)env python3
-
+print("🚀 Starting database initialization...", flush=True)
 import psycopg2, os, pathlib, sys
 
 DSN = os.getenv("DB_DSN")
