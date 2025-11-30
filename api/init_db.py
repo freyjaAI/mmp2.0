@@ -27,5 +27,13 @@ def init():
     
     print("DB ready", flush=True)
 
+def seed_only():
+        seed_file = pathlib.Path("seed/01_seed.sql")
+        if seed_file.exists():
+                    with psycopg2.connect(DSN) as conn:
+                                    with conn.cursor() as cur:
+                                                        cur.execute(seed_file.read_text())
+                                                        print("✔ seeded", flush=True)
+
 if __name__ == "__main__":
     init()
