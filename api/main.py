@@ -36,7 +36,7 @@ app.include_router(clear_router)
 @app.get("/seed")
 def seed_database():
     from api import init_db
-    init_db.init()
+    init_db.seed_only()
     return {"status": "success", "message": "Database seeded"}
 
 # Database connection
