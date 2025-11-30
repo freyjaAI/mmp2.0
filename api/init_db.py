@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/
+print("🚀 Starting database initialization...", flush=True)env python3
 
 import psycopg2, os, pathlib, sys
 
@@ -14,7 +15,7 @@ def init():
         for f in sql_files:
             with conn.cursor() as cur:
                 cur.execute(f.read_text())
-            print(f"✔ {f.name}")
+            print(f"✔ {f.name}, flush=True)
     
     # seed
     seed_file = pathlib.Path("seed/01_seed.sql")
@@ -22,8 +23,8 @@ def init():
         with psycopg2.connect(DSN) as conn:
             with conn.cursor() as cur:
                 cur.execute(seed_file.read_text())
-        print("✔ seeded")
-    
+        print("✔ seeded", flush=True)
+, flush=True)
     print("DB ready")
 
 if __name__ == "__main__":
