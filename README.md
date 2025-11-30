@@ -1,10 +1,10 @@
-README.md# MMP 2.0 - Affordable Risk Analytics Platform
+# MMP 2.0 - Affordable Risk Analytics Platform
 
-> **Production-grade risk intelligence system competing with CLEAR and D&B at 90% cheaper pricing**
+> **Production-grade risk intelligence system competing with enterprise risk analytics providers**
 
 ## 🎯 Mission
 
-Build a **multi-source, entity-centric risk intelligence platform** that delivers the same depth of data as Thomson Reuters CLEAR and Dun & Bradstreet, but at $5-10 per report instead of $75-150.
+Build a **multi-source, entity-centric risk intelligence platform** that delivers the same depth of data as Thomson Reuters CLEAR and Dun & Bradstreet with significantly more competitive pricing.
 
 ## 🏗️ Architecture Overview
 
@@ -39,15 +39,6 @@ C. ENTITY-LEVEL GRAPH (PostgreSQL)
 - **Regulatory Risk** - OFAC, sanctions, PEPs
 - **Business Risk** - Corporate filings, executive affiliations, FEIN linkage
 - **Identity Risk** - SSN validation, address consistency, alias clustering
-
-## 💰 Economics
-
-- **Ingest Cost**: ~$50k for 500M person records + 50M business records
-- **Storage**: <$300/month (2TB parquet + 200GB graph)
-- **Compute**: <$1k/month (serverless jobs)
-- **COGS**: ~$0.25 per 1,000 reports
-- **Target Price**: $5-10 per report (vs CLEAR $75-150)
-- **Margin**: 80%+
 
 ## 🗂️ Repository Structure
 
@@ -96,16 +87,16 @@ mmp2.0/
 
 ## 📚 Data Sources
 
-### Free / Low-Cost (<$0.01 per record)
+### Free / Low-Cost Public Records
 
 - **OFAC & Sanctions** - Treasury RSS (free)
-- **Secretary of State** - All 50 state business filings ($50-200 per state/quarter)
+- **Secretary of State** - All 50 state business filings
 - **USPS APIs** - Address normalization (free)
 - **Census Geocoder** - Free
-- **Federal Bankruptcy** - PACER ($0.10 per case)
-- **UCC Filings** - Many state APIs free (DE, FL)
-- **Jail Rosters** - 300+ county sites (scrape)
-- **Court Calendars** - Public scraping
+- **Federal Bankruptcy** - PACER
+- **UCC Filings** - Many state APIs available
+- **Jail Rosters** - 300+ county sites
+- **Court Calendars** - Public records
 - **SAM.gov** - Federal contractor exclusion list (free)
 - **Google Places / OSM** - Prison/commercial flags
 
@@ -166,7 +157,7 @@ curl http://localhost:8000/entity/{person_canon_id}
 ## 🎨 Embedding the Widget
 
 ```html
-<div id="cheapclear-card" data-canon-id="0193c5d6-..."></div>
+<div id="mmp-entity-card" data-canon-id="{entity_id}"></div>
 <script type="module" src="https://your-cdn.com/entity-card.js"></script>
 ```
 
@@ -174,7 +165,7 @@ curl http://localhost:8000/entity/{person_canon_id}
 
 - **API Response Time**: <50ms
 - **Blocking Performance**: 5M records/min
-- **Entity Resolution**: 500M person records, 50M business records
+- **Entity Resolution**: High-volume person and business records
 - **Uptime**: 99.9%
 
 ## 🤝 Contributing
