@@ -1,266 +1,173 @@
 #!/usr/bin/env python3
 """
-Lazy enrichment module - only fetch external data when requested.
-Consumes free API tokens (Data Axle 6K/mo, A-Leads 60K/mo) on-demand.
+CLEAR-clone response builder – nation-wide risk intelligence.
+Returns JSON matching Thomson Reuters CLEAR layout.
 """
-import os, asyncio, httpx, psycopg2, json
-from typing import Optional
-from datetime import datetime
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from typing import List, Dict, Optional
+import psycopg2, os, datetime
+from api.billing import get_api_key
+from api.enrich import enricher  # lazy enrichment
+from api.cache import get_redis  # Redis cache
+from api.enrich_relatives_deep import enrich_relatives_deep
+from api.enrich_professional_licenses import enrich_professional_licenses
+from api.enrich_education import enrich_education
+from api.enrich_employment_deep import enrich_employment_deep
+from api.enrich_aircraft import enrich_aircraft
+from api.enrich_boat import enrich_boat
+from api.enrich_social_deep import enrich_social_deep
 
-# Import all enrichment modules
-from enrich_sec import enrich_sec
-from enrich_breach import enrich_breach
-from enrich_vehicles import enrich_vehicles
-from enrich_federal_cl import enrich_federal_cases
-from enrich_domain import enrich_domain
-from enrich_eviction import enrich_evictions
-from enrich_relatives import enrich_relatives
-DSN = os.getenv("DB_DSN")
-DATA_AXLE_KEY = os.getenv("DATA_AXLE_API_KEY", "")
-A_LEADS_KEY = os.getenv("A_LEADS_API_KEY", "")
+# Pydantic models
+class SubjectOut(BaseModel):
+    person_canon_id: str
+    best_name: str
+    best_dob: str
+    gender: Optional[str] = None
+    entity_id: str
 
-# Free quota limits
-FREE_LIMITS = {"data_axle": 6000, "a_leads": 60000}
+class AliasOut(BaseModel):
+    alias_name: str
+    alias_type: str
 
-def get_monthly_usage(source: str) -> int:
-    """Check how many free tokens used this month"""
-    try:
-        with psycopg2.connect(DSN) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT COALESCE(SUM(lookups),0) 
-                    FROM api_cost_log 
-                    WHERE source=%s AND log_date >= date_trunc('month', CURRENT_DATE)
-                """, (source,))
-                return cur.fetchone()[0]
-    except Exception as e:
-        print(f"Error checking usage for {source}: {e}")
-        return 999999  # Fail safe - assume quota exceeded
+class AddressOut(BaseModel):
+    usps_std: str
+    zip5: str
+    reported_date: Optional[str] = None
+    source: Optional[str] = None
+    po_box_flag: bool
+    prison_flag: bool
 
-def can_enrich(source: str) -> bool:
-    """Check if we have free quota remaining"""
-    used = get_monthly_usage(source)
-    limit = FREE_LIMITS.get(source, 0)
-    return used < limit
+class LicenseOut(BaseModel):
+    license_type: str
+    status: str
+    expiry_date: Optional[str] = None
+    state: str
+    violations: int
+    source: str
 
-async def enrich_person_contact(person_canon_id: str, best_name: str):
-    """Fetch phone/email from A-Leads if not already in DB"""
-    try:
-        with psycopg2.connect(DSN) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT COUNT(*) FROM person_contact 
-                    WHERE person_canon_id=%s AND src_name='a_leads'
-                """, (person_canon_id,))
-                if cur.fetchone()[0] > 0:
-                    return  # already have it
-    except Exception as e:
-        print(f"DB check error: {e}")
-        return
-    
-    if not can_enrich("a_leads"):
-        print(f"A-Leads quota exceeded")
-        return
-    
-    if not A_LEADS_KEY:
-        print("A_LEADS_API_KEY not configured")
-        return
-    
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            resp = await client.post(
-                "https://app.a-leads.co/api/v2/search",
-                json={"names": [best_name], "fields": ["phone", "email"], "limit": 1},
-                headers={"X-API-Key": A_LEADS_KEY}
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            
-            results = data.get("results", [])
-            if not results:
-                return
-            
-            contact = results[0]
-            phone = contact.get("phone", "")[-10:] if contact.get("phone") else None
-            email_full = contact.get("email", "")
-            email = email_full.split("@")[0].lower() if email_full and "@" in email_full else None
-            
-            with psycopg2.connect(DSN) as conn:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        INSERT INTO person_contact 
-                        (person_canon_id, src_name, src_row_id, phone10, email_local, first_reported)
-                        VALUES (%s, 'a_leads', %s, %s, %s, CURRENT_DATE)
-                        ON CONFLICT (person_canon_id, src_name, src_row_id) DO NOTHING
-                    """, (person_canon_id, contact.get("id", "unknown"), phone, email))
-                    
-                    cur.execute("""
-                        INSERT INTO api_cost_log (source, lookups, cost_cents)
-                        VALUES ('a_leads', 1, 0)
-                    """)
-                    conn.commit()
-            
-            print(f"✔ A-Leads enriched: {best_name}")
-            
-        except Exception as e:
-            print(f"A-Leads error for {best_name}: {e}")
+class RelativeOut(BaseModel):
+    relationship: str
+    name: str
+    age: Optional[int] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    source: str
 
-async def enrich_bankruptcy(person_canon_id: str, best_name: str):
-    """Check CourtListener for bankruptcy if not already in DB"""
-    try:
-        with psycopg2.connect(DSN) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT COUNT(*) FROM person_risk_signal 
-                    WHERE person_canon_id=%s AND signal_type='bankruptcy'
-                """, (person_canon_id,))
-                if cur.fetchone()[0] > 0:
-                    return
-    except Exception as e:
-        print(f"DB check error: {e}")
-        return
-    
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        try:
-            last = best_name.split(",")[0].strip() if "," in best_name else best_name
-            
-            resp = await client.get(
-                "https://www.courtlistener.com/api/rest/v3/dockets/",
-                params={
-                    "q": f'debtor:"{last}"',
-                    "type": "bk",
-                    "order_by": "dateFiled desc",
-                    "page_size": 3
-                }
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            
-            results = data.get("results", [])
-            for case in results:
-                try:
-                    with psycopg2.connect(DSN) as conn:
-                        with conn.cursor() as cur:
-                            cur.execute("""
-                                INSERT INTO person_risk_signal 
-                                (person_canon_id, signal_type, event_date, severity, src_name, src_row_id, raw_json)
-                                VALUES (%s, 'bankruptcy', %s, 8, 'courtlistener_bk', %s, %s)
-                                ON CONFLICT DO NOTHING
-                            """, (
-                                person_canon_id,
-                                case.get("date_filed"),
-                                case.get("docket_number", "unknown"),
-                                json.dumps({
-                                    "case_name": case.get("case_name", ""),
-                                    "court": case.get("court", "")
-                                })
-                            ))
-                            conn.commit()
-                    print(f"✔ CourtListener found bankruptcy for {best_name}")
-                except Exception as e:
-                    print(f"DB insert error: {e}")
-            
-        except Exception as e:
-            print(f"CourtListener error for {best_name}: {e}")
+class EducationOut(BaseModel):
+    school: str
+    degree: str
+    major: Optional[str] = None
+    grad_year: Optional[str] = None
+    state: str
+    source: str
 
-async def enrich_business_firmographics(business_canon_id: str, legal_name: str):
-    """Fetch firmographics from Data Axle if not already in DB"""
-    try:
-        with psycopg2.connect(DSN) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT COUNT(*) FROM business_risk_signal 
-                    WHERE business_canon_id=%s AND signal_type='firmographics'
-                """, (business_canon_id,))
-                if cur.fetchone()[0] > 0:
-                    return
-    except Exception as e:
-        print(f"DB check error: {e}")
-        return
-    
-    if not can_enrich("data_axle"):
-        print("Data Axle quota exceeded")
-        return
-    
-    if not DATA_AXLE_KEY:
-        print("DATA_AXLE_API_KEY not configured")
-        return
-    
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            resp = await client.post(
-                "https://api.data-axle.com/v2/businesses/search",
-                json={
-                    "name": [legal_name],
-                    "select": "name,employees,sales_volume,sic_code",
-                    "limit": 1
-                },
-                headers={"Authorization": f"Bearer {DATA_AXLE_KEY}"}
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            
-            results = data.get("results", [])
-            if not results:
-                return
-            
-            biz = results[0]
-            
-            with psycopg2.connect(DSN) as conn:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        INSERT INTO business_risk_signal 
-                        (business_canon_id, signal_type, event_date, severity, src_name, src_row_id, raw_json)
-                        VALUES (%s, 'firmographics', CURRENT_DATE, 3, 'data_axle', %s, %s)
-                        ON CONFLICT DO NOTHING
-                    """, (
-                        business_canon_id,
-                        biz.get("id", "unknown"),
-                        json.dumps({
-                            "employees": biz.get("employees", 0),
-                            "sales": biz.get("sales_volume", 0),
-                            "sic": biz.get("sic_code", "")
-                        })
-                    ))
-                    
-                    cur.execute("""
-                        INSERT INTO api_cost_log (source, lookups, cost_cents)
-                        VALUES ('data_axle', 1, 0)
-                    """)
-                    conn.commit()
-            
-            print(f"✔ Data Axle enriched: {legal_name}")
-            
-        except Exception as e:
-            print(f"Data Axle error for {legal_name}: {e}")
+class EmploymentOut(BaseModel):
+    job_title: str
+    employer: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    industry: Optional[str] = None
+    source: str
 
-def trigger_enrichments_async(entity_type: str, entity_id: str, entity_data: dict):
-    """Non-blocking enrichment trigger"""
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        if entity_type == "person":
-            tasks = [
-                enrich_person_contact(entity_id, entity_data.get("best_name", "")),
-                enrich_bankruptcy(entity_id, entity_data.get("best_name", "")),
-                                # New enrichment modules
-                enrich_sec(entity_data),
-                enrich_breach(entity_data),
-                enrich_vehicles(entity_data),
-                enrich_federal_cases(entity_data),
-                enrich_domain(entity_data),
-                enrich_evictions(entity_data)
-                                enrich_relatives(entity_data),
-            ]
-        elif entity_type == "business":
-            tasks = [
-                enrich_business_firmographics(entity_id, entity_data.get("legal_name", ""))
-            ]
-        else:
-            return
-        
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-        loop.close()
-    except Exception as e:
-        print(f"Enrichment error: {e}")
+class AircraftOut(BaseModel):
+    n_number: str
+    model: str
+    year: int
+    reg_date: Optional[str] = None
+    state: str
+    source: str
+
+class BoatOut(BaseModel):
+    hull_id: str
+    vessel_name: str
+    year: int
+    reg_date: Optional[str] = None
+    state: str
+    source: str
+
+class SocialDeepOut(BaseModel):
+    twitter_handle: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    instagram_handle: Optional[str] = None
+    facebook_url: Optional[str] = None
+    tiktok_handle: Optional[str] = None
+
+class RelativeOut(BaseModel):
+    relationship: str
+    name: str
+    age: Optional[int] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    source: str
+
+class EducationOut(BaseModel):
+    school: str
+    degree: str
+    major: Optional[str] = None
+    grad_year: Optional[str] = None
+    state: str
+    source: str
+
+class EmploymentOut(BaseModel):
+    job_title: str
+    employer: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    industry: Optional[str] = None
+    source: str
+
+class AircraftOut(BaseModel):
+    n_number: str
+    model: str
+    year: int
+    reg_date: Optional[str] = None
+    state: str
+    source: str
+
+class BoatOut(BaseModel):
+    hull_id: str
+    vessel_name: str
+    year: int
+    reg_date: Optional[str] = None
+    state: str
+    source: str
+
+class SocialDeepOut(BaseModel):
+    twitter_handle: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    instagram_handle: Optional[str] = None
+    facebook_url: Optional[str] = None
+    tiktok_handle: Optional[str] = None
+
+class RiskEventOut(BaseModel):
+    date: str
+    type: str
+    severity: int
+    description: str
+    case_number: Optional[str] = None
+    court: Optional[str] = None
+    disposition: Optional[str] = None
+    source: str
+    case_number: Optional[str] = None
+    court: Optional[str] = None
+    disposition: Optional[str] = None
+    source: str
+
+class AssociateOut(BaseModel):
+    person_can_id: str
+    name: str
+    relationship: str
+    strength: int
+
+class PersonReportOut(BaseModel):
+    subject: SubjectOut
+    aliases: List[AliasOut]
+    addresses: List[AddressOut]
+    flags: dict
+    criminal_records: List[RiskEventOut]
+    associates: List[AssociateOut]
+    relatives_deep: List[RelativeOut]
+    education:
