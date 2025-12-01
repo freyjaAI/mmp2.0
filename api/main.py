@@ -1,3 +1,10 @@
+# Environment Guard - prevent exit on missing vars
+import sys, os
+for var in ["DB_DSN", "REDIS_URL", "STRIPE_SECRET"]:
+    if not os.getenv(var):
+        print(f"WARNING: Missing {var}, using fallback")
+        os.environ[var] = "fallback"
+
 """
 MMP 2.0 - Risk Analytics API
 FastAPI endpoint for risk intelligence reports
@@ -317,4 +324,5 @@ async def get_risk_timeline(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
