@@ -164,7 +164,7 @@ try:
         REDIS_URL = os.getenv("REDIS_URL")
         if REDIS_URL:
             r = redis.from_url(REDIS_URL)
-            jail_key = f"jail:harris:{subj[1]}.lower().replace(' ', '_')}"
+            jail_key = f"jail:harris:{subj[1].lower().replace(' ', '_')}"
             jail_data = r.get(jail_key)
             if jail_data:
                 real_time_dict = {"in_custody_now": True, "facility": "Harris County Jail", "source": "15-min polling"}
