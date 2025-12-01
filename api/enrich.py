@@ -11,7 +11,7 @@ from datetime import datetime
 from api.enrich_sec import enrich_sec
 from api.enrich_breach import enrich_breach
 from api.enrich_vehicles import enrich_vehicles
-from api.enrich_federal_ci import enrich_federal_cases
+# from api.enrich_federal_ci import enrich_federal_cases
 from api.enrich_domain import enrich_domain
 from api.enrich_eviction import enrich_evictions
 from api.enrich_relatives import enrich_relatives
@@ -248,7 +248,7 @@ def trigger_enrichments_async(entity_type: str, entity_id: str, entity_data: dic
                 enrich_sec(entity_data),
                 enrich_breach(entity_data),
                 enrich_vehicles(entity_data),
-                enrich_federal_cases(entity_data),
+                # enrich_federal_cases(entity_data),
                 enrich_domain(entity_data),
                 enrich_evictions(entity_data),
                                 enrich_relatives(entity_data),
