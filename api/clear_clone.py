@@ -168,7 +168,7 @@ try:
             jail_data = r.get(jail_key)
             if jail_data:
                 real_time_dict = {"in_custody_now": True, "facility": "Harris County Jail", "source": "15-min polling"}
-    except:
+except:
         pass
     return PersonReportOut(
             subject=SubjectOut(person_canon_id=subj[0], best_name=subj[1],
