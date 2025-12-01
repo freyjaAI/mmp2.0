@@ -1,173 +1,166 @@
 #!/usr/bin/env python3
 """
-CLEAR-clone response builder – nation-wide risk intelligence.
-Returns JSON matching Thomson Reuters CLEAR layout.
+Nationwide lazy enrichment orchestrator – triggers external APIs only when fields missing.
+Caches results in Redis for 1 hour.
 """
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import List, Dict, Optional
-import psycopg2, os, datetime
-from api.billing import get_api_key
-from api.enrich import enricher  # lazy enrichment
-from api.cache import get_redis  # Redis cache
+import asyncio, os, json, redis, psycopg2
+from typing import Optional, List, Dict
+from api.enrich_bankruptcy import enrich_bankruptcy
+from api.enrich_federal_cl import enrich_federal_cases
+from api.enrich_sec import enrich_sec_officer
+from api.enrich_breach import enrich_breach
+from api.enrich_domain import enrich_domain
+from api.enrich_vehicles import enrich_vehicles
+from api.enrich_boat import enrich_boat
+from api.enrich_aircraft import enrich_aircraft
+from api.enrich_eviction import enrich_eviction
 from api.enrich_relatives_deep import enrich_relatives_deep
 from api.enrich_professional_licenses import enrich_professional_licenses
 from api.enrich_education import enrich_education
 from api.enrich_employment_deep import enrich_employment_deep
-from api.enrich_aircraft import enrich_aircraft
-from api.enrich_boat import enrich_boat
 from api.enrich_social_deep import enrich_social_deep
 
-# Pydantic models
-class SubjectOut(BaseModel):
-    person_canon_id: str
-    best_name: str
-    best_dob: str
-    gender: Optional[str] = None
-    entity_id: str
+REDIS_URL = os.getenv("REDIS_URL")
+ENRICH_TTL = 3600  # 1 hour cache
 
-class AliasOut(BaseModel):
-    alias_name: str
-    alias_type: str
+async def enrich_person(person_canon_id: str, base: dict) -> dict:
+    """
+    Returns enriched dict (phone, email, bankruptcy, etc.)
+    If missing → triggers background API call → store → cache.
+    """
+    r = redis.from_url(REDIS_URL, decode_responses=True)
+    key = f"enrich:person:{person_canon_id}"
+    cached = await r.get(key)
+    if cached:
+        base.update(json.loads(cached))
+        return base
 
-class AddressOut(BaseModel):
-    usps_std: str
-    zip5: str
-    reported_date: Optional[str] = None
-    source: Optional[str] = None
-    po_box_flag: bool
-    prison_flag: bool
+    # decide what to fetch
+    missing = []
+    if not base.get("phone"): missing.append("phone")
+    if not base.get("email"): missing.append("email")
+    if not base.get("bankruptcy"): missing.append("bankruptcy")
+    if not base.get("federal_cases"): missing.append("federal_cases")
+    if not base.get("sec_filings"): missing.append("sec_filings")
+    if not base.get("breach_count"): missing.append("breach_count")
+    if not base.get("domains"): missing.append("domains")
+    if not base.get("vehicles"): missing.append("vehicles")
+    if not base.get("boat"): missing.append("boat")
+    if not base.get("aircraft"): missing.append("aircraft")
+    if not base.get("eviction_count"): missing.append("eviction_count")
+    if not base.get("relatives_deep"): missing.append("relatives_deep")
+    if not base.get("professional_licenses"): missing.append("professional_licenses")
+    if not base.get("education"): missing.append("education")
+    if not base.get("employment_deep"): missing.append("employment_deep")
+    if not base.get("social_deep"): missing.append("social_deep")
 
-class LicenseOut(BaseModel):
-    license_type: str
-    status: str
-    expiry_date: Optional[str] = None
-    state: str
-    violations: int
-    source: str
+    # background fetch (fire-and-forget)
+    if missing:
+        asyncio.create_task(_background_fetch(person_canon_id, base, missing))
 
-class RelativeOut(BaseModel):
-    relationship: str
-    name: str
-    age: Optional[int] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    source: str
+    # return base + flag
+    base["_enriching"] = missing
+    return base
 
-class EducationOut(BaseModel):
-    school: str
-    degree: str
-    major: Optional[str] = None
-    grad_year: Optional[str] = None
-    state: str
-    source: str
+async def _background_fetch(person_canon_id: str, base: dict, missing: List[str]):
+    """
+    Async fetch + store + cache.
+    """
+    try:
+        # fetch base data from DB
+        with psycopg2.connect(os.getenv("DB_DSN")) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT best_name, email_local
+                    FROM person_canon
+                    WHERE person_canon_id = %s
+                """, (person_canon_id,))
+                row = cur.fetchone()
+                if not row:
+                    return
+                entity_data = {"best_name": row[0], "email_local": row[1] or ""}
 
-class EmploymentOut(BaseModel):
-    job_title: str
-    employer: str
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    industry: Optional[str] = None
-    source: str
+        # ---- bankruptcy ----
+        if "bankruptcy" in missing:
+            tasks.append(enrich_bankruptcy(person_canon_id, entity_data.get("best_name", "")))
+        # ---- federal cases ----
+        if "federal_cases" in missing:
+            tasks.append(enrich_federal_cases(client, entity_data.get("best_name", "")))
+        # ---- SEC filings ----
+        if "sec_filings" in missing:
+            tasks.append(enrich_sec_officer(client, entity_data.get("best_name", "")))
+        # ---- breach history ----
+        if "breach_count" in missing:
+            tasks.append(enrich_breach(client, entity_data.get("email_local", "")))
+        # ---- domain ownership ----
+        if "domains" in missing:
+            tasks.append(enrich_domain(client, entity_data.get("email_local", "")))
+        # ---- vehicles ----
+        if "vehicles" in missing:
+            tasks.append(enrich_vehicles(client, entity_data.get("best_name", "")))
+        # ---- boats ----
+        if "boat" in missing:
+            tasks.append(enrich_boat(client, entity_data.get("best_name", "")))
+        # ---- aircraft ----
+        if "aircraft" in missing:
+            tasks.append(enrich_aircraft(client, entity_data.get("best_name", "")))
+        # ---- eviction records ----
+        if "eviction_count" in missing:
+            tasks.append(enrich_eviction(client, entity_data.get("best_name", "")))
 
-class AircraftOut(BaseModel):
-    n_number: str
-    model: str
-    year: int
-    reg_date: Optional[str] = None
-    state: str
-    source: str
+        # ---- relatives deep ----
+        if "relatives_deep" in missing:
+            tasks.append(enrich_relatives_deep(entity_data.get("best_name", "")))
+        # ---- professional licenses ----
+        if "professional_licenses" in missing:
+            tasks.append(enrich_professional_licenses(entity_data.get("best_name", "")))
+        # ---- education deep ----
+        if "education" in missing:
+            tasks.append(enrich_education(entity_data.get("best_name", "")))
+        # ---- employment deep ----
+        if "employment_deep" in missing:
+            tasks.append(enrich_employment_deep(entity_data.get("best_name", "")))
+        # ---- aircraft ----
+        if "aircraft" in missing:
+            tasks.append(enrich_aircraft(entity_data.get("best_name", "")))
+        # ---- boat ----
+        if "boat" in missing:
+            tasks.append(enrich_boat(entity_data.get("best_name", "")))
+        # ---- social deep ----
+        if "social_deep" in missing:
+            tasks.append(enrich_social_deep(entity_data.get("best_name", "")))
 
-class BoatOut(BaseModel):
-    hull_id: str
-    vessel_name: str
-    year: int
-    reg_date: Optional[str] = None
-    state: str
-    source: str
+        # run all async fetches
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        merged = {}
+        for r in results:
+            if isinstance(r, dict):
+                merged.update(r)
 
-class SocialDeepOut(BaseModel):
-    twitter_handle: Optional[str] = None
-    linkedin_url: Optional[str] = None
-    instagram_handle: Optional[str] = None
-    facebook_url: Optional[str] = None
-    tiktok_handle: Optional[str] = None
+        # store DB + Redis
+        await _store_enriched(person_canon_id, merged)
 
-class RelativeOut(BaseModel):
-    relationship: str
-    name: str
-    age: Optional[int] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    source: str
+    except Exception as e:
+        print(f"enrich bg error: {e}")
 
-class EducationOut(BaseModel):
-    school: str
-    degree: str
-    major: Optional[str] = None
-    grad_year: Optional[str] = None
-    state: str
-    source: str
-
-class EmploymentOut(BaseModel):
-    job_title: str
-    employer: str
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    industry: Optional[str] = None
-    source: str
-
-class AircraftOut(BaseModel):
-    n_number: str
-    model: str
-    year: int
-    reg_date: Optional[str] = None
-    state: str
-    source: str
-
-class BoatOut(BaseModel):
-    hull_id: str
-    vessel_name: str
-    year: int
-    reg_date: Optional[str] = None
-    state: str
-    source: str
-
-class SocialDeepOut(BaseModel):
-    twitter_handle: Optional[str] = None
-    linkedin_url: Optional[str] = None
-    instagram_handle: Optional[str] = None
-    facebook_url: Optional[str] = None
-    tiktok_handle: Optional[str] = None
-
-class RiskEventOut(BaseModel):
-    date: str
-    type: str
-    severity: int
-    description: str
-    case_number: Optional[str] = None
-    court: Optional[str] = None
-    disposition: Optional[str] = None
-    source: str
-    case_number: Optional[str] = None
-    court: Optional[str] = None
-    disposition: Optional[str] = None
-    source: str
-
-class AssociateOut(BaseModel):
-    person_can_id: str
-    name: str
-    relationship: str
-    strength: int
-
-class PersonReportOut(BaseModel):
-    subject: SubjectOut
-    aliases: List[AliasOut]
-    addresses: List[AddressOut]
-    flags: dict
-    criminal_records: List[RiskEventOut]
-    associates: List[AssociateOut]
-    relatives_deep: List[RelativeOut]
-    education:
+async def _store_enriched(person_canon_id: str, data: dict):
+    """
+    Store to DB + Redis cache.
+    """
+    r = redis.from_url(REDIS_URL, decode_responses=True)
+    await r.setex(f"enrich:person:{person_canon_id}", ENRICH_TTL, json.dumps(data))
+    # optional DB store (if you want persistent copy)
+    with psycopg2.connect(os.getenv("DB_DSN")) as conn:
+        with conn.cursor() as cur:
+            if data.get("phone") or data.get("email"):
+                cur.execute("""
+                    INSERT INTO person_contact (person_canon_id, src_name, src_row_id, phone10, email_local, first_reported)
+                    VALUES (%s, 'lazy_enrich', %s, %s, %s, CURRENT_DATE)
+                    ON CONFLICT DO NOTHING
+                """, (person_canon_id, "lazy", data.get("phone"), data.get("email")))
+            if data.get("bankruptcy"):
+                cur.execute("""
+                    INSERT INTO person_risk_signal (person_canon_id, signal_type, event_date, severity, src_name, src_row_id, raw_json)
+                    VALUES (%s, 'bankruptcy', %s, 8, 'courtlistener_lazy', %s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (person_canon_id, data["bankruptcy_filed"], "lazy", json.dumps({"chapter": data["bankruptcy_chapter"]})))
