@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 from datetime import  date
 import psycopg2, os
 from api.enrich import trigger_enrichments_async
+from api.cache import cache_ttl
 
 
 router = APIRouter(prefix="/clear", tags=["clear-clone"])
