@@ -14,6 +14,25 @@ from enrich_vehicles import enrich_vehicles
 from enrich_federal_cl import enrich_federal_cases
 from enrich_domain import enrich_domain
 from enrich_eviction import enrich_evictions
+from .enrich_professional_licenses import enrich_professional_licenses
+from .enrich_education import enrich_education
+from .enrich_employment_deep import enrich_employment_deep
+from .enrich_aircraft import enrich_aircraft
+from .enrich_boat import enrich_boat
+from .enrich_social_deep import enrich_social_deep
+...
+if "professional_licenses" in missing:
+    tasks.append(enrich_professional_licenses(client, person_name))
+if "education" in missing:
+    tasks.append(enrich_education(client, person_name))
+if "employment_deep" in missing:
+    tasks.append(enrich_employment_deep(client, person_name))
+if "aircraft" in missing:
+    tasks.append(enrich_aircraft(client, person_name))
+if "boat" in missing:
+    tasks.append(enrich_boat(client, person_name))
+if "social_deep" in missing:
+    tasks.append(enrich_social_deep(client, person_name))
 
 DSN = os.getenv("DB_DSN")
 DATA_AXLE_KEY = os.getenv("DATA_AXLE_API_KEY", "")
