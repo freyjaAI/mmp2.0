@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMP 2.0 - Pay-as-you-go Risk Intelligence</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #1a1a1a;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin: 0 0 30px 0;
+            font-size: 16px;
+        }
+        .price {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+        .price-unit {
+            font-size: 18px;
+            color: #666;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 30px 0;
+        }
+        li {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            color: #333;
+        }
+        li:before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .compare {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .compare strong {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 MMP 2.0</h1>
+        <p class="subtitle">Pay-as-you-go Risk Intelligence</p>
+        
+        <div class="price">
+            $0.50 <span class="price-unit">per lookup</span>
+        </div>
+        
+        <div class="compare">
+            <strong>10× cheaper than CLEAR</strong><br>
+            Thomson Reuters charges $75-150 per report.<br>
+            We charge $0.50 per row. Same data, better price.
+        </div>
+        
+        <ul>
+            <li>Person & Business reports</li>
+            <li>Criminal records, bankruptcies, liens</li>
+            <li>Phone & email enrichment</li>
+            <li>OFAC sanctions screening</li>
+            <li>Real-time API access</li>
+            <li>No monthly minimums</li>
+        </ul>
+        
+        <button id="checkout-button">Get API Access</button>
+    </div>
+    
+    <script>
+        const stripe = Stripe('pk_test_YOUR_KEY_HERE');
+        const button = document.getElementById('checkout-button');
+        
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            button.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch('/portal/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const session = await response.json();
+                
+                const { error } = await stripe.redirectToCheckout({
+                    sessionId: session.id
+                });
+                
+                if (error) {
+                    console.error(error);
+                    button.disabled = false;
+                    button.textContent = 'Get API Access';
+                }
+            } catch (err) {
+                console.error(err);
+                button.disabled = false;
+                button.textContent = 'Get API Access';
+            }
+        });
+    </script>
+</body>
+</html>
