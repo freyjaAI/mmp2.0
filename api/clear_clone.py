@@ -13,12 +13,8 @@ from api.cache import get_redis  # Redis cache
 from api.enrich_relatives_deep import enrich_relatives_deep
 # Pydantic models
 class SubjectOut(BaseModel):
-        person_canon_id: str
-        best_name: str
-    best_dob: str
-    gender: Optional[str] = None
-    entity_id: str
-
+            person_canon_id: str
+            best_name: str
 class AliasOut(BaseModel):
     alias_name: str
     alias_type: str
