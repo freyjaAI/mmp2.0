@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import  date
 import psycopg2, os
-from api.cache import cache_ttl
+from api.enrich import trigger_enrichments_async
+
 
 router = APIRouter(prefix="/clear", tags=["clear-clone"])
 
