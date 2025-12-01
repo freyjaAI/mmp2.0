@@ -170,4 +170,4 @@ class PersonReportOut(BaseModel):
     criminal_records: List[RiskEventOut]
     associates: List[AssociateOut]
     relatives_deep: List[RelativeOut]
-    education:
+    education: List[EducationOut]
