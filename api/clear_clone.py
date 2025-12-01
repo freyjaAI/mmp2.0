@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import  date
 import psycopg2, os
+from api.cache import cache_ttl
 
 router = APIRouter(prefix="/clear", tags=["clear-clone"])
 
@@ -68,6 +69,7 @@ DB_DSN = os.getenv("DB_DSN", "host=localhost dbname=riskdb user=postgres passwor
 
 # ---------- main report ----------
 
+@cache_ttl()
 @router.get("/person/{person_canon_id}", response_model=PersonReportOut)
 def person_clear_report(person_canon_id: str):
     with psycopg2.connect(DB_DSN) as conn:
@@ -181,11 +183,13 @@ class BizReportOut(BaseModel):
     same_address_businesses: List[str]
     same_address_people: List[str]
 
+@cache_ttl()
 @router.get("/business/{business_canon_id}", response_model=BizReportOut)
 def business_clear_report(business_canon_id: str):
     with psycopg2.connect(DB_DSN) as conn:
         cur = conn.cursor()
-        
+        @cache_ttl()
+
         # stub – wire same pattern as person
         return BizReportOut(
             subject=BizSubjectOut(business_canon_id=business_canon_id,
