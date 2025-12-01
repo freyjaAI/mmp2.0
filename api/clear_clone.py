@@ -177,11 +177,11 @@ except:
     flags=flags,
     criminal_records=crimes,
     associates=associates,
-risk_scores=risk_scores_dict,
-real_time=real_time_dict,
-timeline=None,
-network=None,
-visuals=None
+    risk_scores=risk_scores_dict,
+    real_time=real_time_dict,
+    timeline=None,
+    network=None,
+    visuals=None
 )
 
 # ---------- BUSINESS CLONE ENDPOINT ----------
