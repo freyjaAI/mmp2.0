@@ -18,6 +18,7 @@ from slowapi.errors import RateLimitExceeded
 from api.clear_clone import router as clear_router
 from api.bulk import router as bulk_router
 from portal.success import router as billing_router
+from api.visuals import router as visuals_router
 
 app = FastAPI(
     title="MMP 2.0 Risk Analytics API",
@@ -47,6 +48,7 @@ app.include_router(clear_router)
 def seed_database():
     app.include_router(bulk_router)
     app.include_router(billing_router)
+        app.include_router(visuals_router)
     from api import init_db
     init_db.seed_only()
     return {"status": "success", "message": "Database seeded"}
