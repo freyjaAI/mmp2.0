@@ -13,6 +13,7 @@ import os
 from datetime import datetime
 import json
 from api.clear_clone import router as clear_router
+from api.bulk import router as bulk_router
 
 app = FastAPI(
     title="MMP 2.0 Risk Analytics API",
@@ -35,6 +36,7 @@ app.include_router(clear_router)
 # Seed endpoint (temporary)
 @app.get("/seed")
 def seed_database():
+    app.include_router(bulk_router)
     from api import init_db
     init_db.seed_only()
     return {"status": "success", "message": "Database seeded"}
