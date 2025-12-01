@@ -8,13 +8,13 @@ from typing import Optional
 from datetime import datetime
 
 # Import all enrichment modules
-from enrich_sec import enrich_sec
-from enrich_breach import enrich_breach
-from enrich_vehicles import enrich_vehicles
-from enrich_federal_cl import enrich_federal_cases
-from enrich_domain import enrich_domain
-from enrich_eviction import enrich_evictions
-from enrich_relatives import enrich_relatives
+from api.enrich_sec import enrich_sec
+from api.enrich_breach import enrich_breach
+from api.enrich_vehicles import enrich_vehicles
+from api.enrich_federal_ci import enrich_federal_cases
+from api.enrich_domain import enrich_domain
+from api.enrich_eviction import enrich_evictions
+from api.enrich_relatives import enrich_relatives
 DSN = os.getenv("DB_DSN")
 DATA_AXLE_KEY = os.getenv("DATA_AXLE_API_KEY", "")
 A_LEADS_KEY = os.getenv("A_LEADS_API_KEY", "")
