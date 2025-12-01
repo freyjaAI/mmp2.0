@@ -15,6 +15,7 @@ pandas==2.2.2  # Railway buildpack has pre-built wheel
 python-multipart==0.0.9  # for File upload
 
 httpx==0.27.0
+aiohttp==3.9.1
 
 # Week 5: Billing & Monetization
 stripe==11.1.1
