@@ -7,6 +7,14 @@ import os, asyncio, httpx, psycopg2, json
 from typing import Optional
 from datetime import datetime
 
+# Import all enrichment modules
+from enrich_sec import enrich_sec
+from enrich_breach import enrich_breach
+from enrich_vehicles import enrich_vehicles
+from enrich_federal_cl import enrich_federal_cases
+from enrich_domain import enrich_domain
+from enrich_eviction import enrich_evictions
+
 DSN = os.getenv("DB_DSN")
 DATA_AXLE_KEY = os.getenv("DATA_AXLE_API_KEY", "")
 A_LEADS_KEY = os.getenv("A_LEADS_API_KEY", "")
@@ -236,6 +244,13 @@ def trigger_enrichments_async(entity_type: str, entity_id: str, entity_data: dic
             tasks = [
                 enrich_person_contact(entity_id, entity_data.get("best_name", "")),
                 enrich_bankruptcy(entity_id, entity_data.get("best_name", ""))
+                                # New enrichment modules
+                enrich_sec(entity_data),
+                enrich_breach(entity_data),
+                enrich_vehicles(entity_data),
+                enrich_federal_cases(entity_data),
+                enrich_domain(entity_data),
+                enrich_evictions(entity_data)
             ]
         elif entity_type == "business":
             tasks = [
