@@ -42,13 +42,13 @@ app.add_middleware(
 
 # Include CLEAR clone router
 app.include_router(clear_router)
+app.include_router(bulk_router)
+app.include_router(billing_router)
+app.include_router(visuals_router)
 
 # Seed endpoint (temporary)
 @app.get("/seed")
 def seed_database():
-    app.include_router(bulk_router)
-    app.include_router(billing_router)
-        app.include_router(visuals_router)
     from api import init_db
     init_db.seed_only()
     return {"status": "success", "message": "Database seeded"}
