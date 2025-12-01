@@ -190,7 +190,6 @@ class BizReportOut(BaseModel):
 def business_clear_report(business_canon_id: str):
     with psycopg2.connect(DB_DSN) as conn:
         cur = conn.cursor()
-        @cache_ttl()
 
         # stub – wire same pattern as person
         return BizReportOut(
