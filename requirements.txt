@@ -7,3 +7,9 @@ psycopg2-binary==2.9.9
 # FastAPI & Web Framework
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
+
+# Week 4: Performance & Caching
+redis[hiredis]==5.0.1
+asyncpg==0.29.0
+pandas==2.2.2  # Railway buildpack has pre-built wheel
+python-multipart==0.0.9  # for File upload
