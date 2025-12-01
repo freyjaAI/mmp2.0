@@ -163,6 +163,30 @@ This is an active development project following a weekly sprint model. Each week
 - **Week 3-4**: Additional data sources and ML models
 - **Week 5+**: Production hardening and compliance
 
+
+## 🚀 Week 4b: Lazy Enrichment System (On-Demand Data Fetching)
+
+### What Changed
+We've implemented a **lazy enrichment** system that only fetches data from external APIs when customers actually request it. This eliminates upfront batch processing costs and maximizes the value of our free API quotas.
+
+### How It Works
+1. **Customer hits `/clear/person/{id}`**
+2. **System checks cache** (Redis) - if found, return instantly (5ms)
+3. **If cache miss**, check DB for missing fields:
+   - No phone/email? → Trigger A-Leads lookup (free quota: 60K/month)
+   - No bankruptcy? → Trigger CourtListener lookup (free, unlimited)
+   - Business? → Trigger Data Axle firmographics (free quota: 6K/month)
+4. **Background enrichment** starts (non-blocking)
+5. **Return base response** immediately (~180ms first hit)
+6. **Next request** gets enriched cached data (~5ms)
+
+### Free Data Sources
+- **OFAC Sanctions**: Treasury.gov XML (free, updated daily)
+- **Harris County TX Criminal**: Socrata API (free, 1K/day limit)
+- **CourtListener Bankruptcy**: Free public API (unlimited)
+- **A-Leads Contact Data**: 60,000 free look
+
+
 ## 📄 License
 
 MIT License - See LICENSE file for details
