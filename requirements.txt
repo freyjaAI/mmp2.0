@@ -13,3 +13,5 @@ redis[hiredis]==5.0.1
 asyncpg==0.29.0
 pandas==2.2.2  # Railway buildpack has pre-built wheel
 python-multipart==0.0.9  # for File upload
+
+httpx==0.27.0
