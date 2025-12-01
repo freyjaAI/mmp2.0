@@ -159,7 +159,7 @@ def person_clear_report(person_canon_id: str):
 risk_scores_dict = compute_risk_scores(person_data)
 
     # 8. check real-time jail status
-try:
+    try:
         real_time_dict = None
         REDIS_URL = os.getenv("REDIS_URL")
         if REDIS_URL:
@@ -168,7 +168,7 @@ try:
             jail_data = r.get(jail_key)
             if jail_data:
                 real_time_dict = {"in_custody_now": True, "facility": "Harris County Jail", "source": "15-min polling"}
-except:
+    except:
         pass
     return PersonReportOut(            subject=SubjectOut(person_canon_id=subj[0], best_name=subj[1],
                      best_dob=subj[2], gender=subj[3], entity_id=subj[4]),
