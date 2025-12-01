@@ -67,7 +67,7 @@ class PersonReportOut(BaseModel):
     flags: FlagsOut
     criminal_records: List[RiskEventOut]
     associates: List[AssociateOut]
-            risk_scores: Optional[Dict] = None
+        risk_scores: Optional[Dict] = None
     real_time: Optional[Dict] = None
     timeline: Optional[List[Dict]] = None
     network: Optional[Dict] = None
