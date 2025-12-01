@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
+from datetime import  date
 import psycopg2, os
 
 router = APIRouter(prefix="/clear", tags=["clear-clone"])
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/clear", tags=["clear-clone"])
 class SubjectOut(BaseModel):
     person_canon_id: str
     best_name: str
-    best_dob: Optional[str] = None
+    best_dob: Optional[date] = None
     gender: Optional[str] = None
     entity_id: str
 
