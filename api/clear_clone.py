@@ -159,6 +159,7 @@ def person_clear_report(person_canon_id: str):
 risk_scores_dict = compute_risk_scores(person_data)
 
     # 8. check real-time jail status
+    real_time_dict = None
     
 try:    REDIS_URL = os.getenv("REDIS_URL")
         if REDIS_URL:
