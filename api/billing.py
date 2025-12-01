@@ -1,7 +1,7 @@
 import os
 import stripe
 from fastapi import HTTPException, Request
-from api.db import get_db
+#from api.db import get_db
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
@@ -14,8 +14,8 @@ def get_api_key(request: Request):
 
 def meter_lookup(api_key: str, rows: int = 1):
     """Stripe metered billing - $0.50 per lookup row"""
-    conn = get_db()
-    cur = conn.cursor()
+    # conn = get_db()
+    # cur = conn.cursor()
     
     # Get Stripe customer ID from API key
     cur.execute(
