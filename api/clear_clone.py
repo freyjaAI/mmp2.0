@@ -156,13 +156,12 @@ def person_clear_report(person_canon_id: str):
         
 
     # 7. compute risk scores
-    person_data = {"name": sub[1], "dob": sub[2], "addresses": addresses, "criminal_records": crimes, "bankruptcy": flags.bankruptcy}
-    risk_scores_dict = compute_risk_scores(person_data)
+    person_data = {"name": subj[1], "dob": subj[2], "addresses": addresses, "criminal_records": crimes, "bankruptcy": flags.bankruptcy}    
+risk_scores_dict = compute_risk_scores(person_data)
 
     # 8. check real-time jail status
-    real_time_dict = None
-    try:
-        REDIS_URL = os.getenv("REDIS_URL")
+    
+try:    REDIS_URL = os.getenv("REDIS_URL")
         if REDIS_URL:
             r = redis.from_url(REDIS_URL)
             jail_key = f"jail:harris:{sub[1].lower().replace(' ', '_')}"
