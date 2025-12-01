@@ -5,6 +5,8 @@ from datetime import  date
 import psycopg2, os
 from api.enrich import trigger_enrichments_async
 from api.cache import cache_ttl
+import redis
+from api.ml_score import compute_risk_scores
 
 
 router = APIRouter(prefix="/clear", tags=["clear-clone"])
@@ -65,6 +67,11 @@ class PersonReportOut(BaseModel):
     flags: FlagsOut
     criminal_records: List[RiskEventOut]
     associates: List[AssociateOut]
+        risk_scores: Optional[Dict] = None
+    real_time: Optional[Dict] = None
+    timeline: Optional[List[Dict]] = None
+    network: Optional[Dict] = None
+    visuals: Optional[Dict] = None
 
 # ---------- helper ----------
 DB_DSN = os.getenv("DB_DSN", "host=localhost dbname=riskdb user=postgres password=postgres")
@@ -147,6 +154,23 @@ def person_clear_report(person_canon_id: str):
         associates = [AssociateOut(person_canon_id=r[0], name=r[1],
                                    relationship=r[2], strength=r[3]) for r in cur.fetchall()]
         
+
+    # 7. compute risk scores
+    person_data = {"name": sub[1], "dob": sub[2], "addresses": addresses, "criminal_records": crimes, "bankruptcy": flags.bankruptcy}
+    risk_scores_dict = compute_risk_scores(person_data)
+
+    # 8. check real-time jail status
+    real_time_dict = None
+    try:
+        REDIS_URL = os.getenv("REDIS_URL")
+        if REDIS_URL:
+            r = redis.from_url(REDIS_URL)
+            jail_key = f"jail:harris:{sub[1].lower().replace(' ', '_')}"
+            jail_data = r.get(jail_key)
+            if jail_data:
+                real_time_dict = {"in_custody_now": True, "facility": "Harris County Jail", "source": "15-min polling"}
+    except:
+        pass
         return PersonReportOut(
             subject=SubjectOut(person_canon_id=subj[0], best_name=subj[1],
                              best_dob=subj[2], gender=subj[3], entity_id=subj[4]),
@@ -154,7 +178,12 @@ def person_clear_report(person_canon_id: str):
             addresses=addresses,
             flags=flags,
             criminal_records=crimes,
-            associates=associates
+            associates=associates,
+        risk_scores=risk_scores_dict,
+        real_time=real_time_dict,
+        timeline=None,
+        network=None,
+        visuals=None
         )
 
 # ---------- BUSINESS CLONE ENDPOINT ----------
