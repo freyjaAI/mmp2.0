@@ -170,20 +170,19 @@ try:
                 real_time_dict = {"in_custody_now": True, "facility": "Harris County Jail", "source": "15-min polling"}
 except:
         pass
-    return PersonReportOut(
-            subject=SubjectOut(person_canon_id=subj[0], best_name=subj[1],
-                             best_dob=subj[2], gender=subj[3], entity_id=subj[4]),
-            aliases=aliases,
-            addresses=addresses,
-            flags=flags,
-            criminal_records=crimes,
-            associates=associates,
-        risk_scores=risk_scores_dict,
-        real_time=real_time_dict,
-        timeline=None,
-        network=None,
-        visuals=None
-        )
+    return PersonReportOut(            subject=SubjectOut(person_canon_id=subj[0], best_name=subj[1],
+                     best_dob=subj[2], gender=subj[3], entity_id=subj[4]),
+    aliases=aliases,
+    addresses=addresses,
+    flags=flags,
+    criminal_records=crimes,
+    associates=associates,
+risk_scores=risk_scores_dict,
+real_time=real_time_dict,
+timeline=None,
+network=None,
+visuals=None
+)
 
 # ---------- BUSINESS CLONE ENDPOINT ----------
 
