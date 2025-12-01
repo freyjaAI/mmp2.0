@@ -243,14 +243,14 @@ def trigger_enrichments_async(entity_type: str, entity_id: str, entity_data: dic
         if entity_type == "person":
             tasks = [
                 enrich_person_contact(entity_id, entity_data.get("best_name", "")),
-                enrich_bankruptcy(entity_id, entity_data.get("best_name", ""))
+                enrich_bankruptcy(entity_id, entity_data.get("best_name", "")),
                                 # New enrichment modules
                 enrich_sec(entity_data),
                 enrich_breach(entity_data),
                 enrich_vehicles(entity_data),
                 enrich_federal_cases(entity_data),
                 enrich_domain(entity_data),
-                enrich_evictions(entity_data)
+                enrich_evictions(entity_data),
                                 enrich_relatives(entity_data),
             ]
         elif entity_type == "business":
