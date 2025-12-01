@@ -11,17 +11,7 @@ from api.billing import get_api_key
 from api.enrich import enricher  # lazy enrichment
 from api.cache import get_redis  # Redis cache
 from api.enrich_relatives_deep import enrich_relatives_deep
-from api.enrich_professional_licenses import enrich_professional_licenses
-from api.enrich_education import enrich_education
-from api.enrich_employment_deep import enrich_employment_deep
-from api.enrich_aircraft import enrich_aircraft
-from api.enrich_boat import enrich_boat
-from api.enrich_social_deep import enrich_social_deep
-
 # Pydantic models
-class SubjectOut(BaseModel):
-    person_canon_id: str
-    best_name: str
     best_dob: str
     gender: Optional[str] = None
     entity_id: str
