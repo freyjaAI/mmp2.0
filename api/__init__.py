@@ -33,6 +33,21 @@ async def get_dashboard():
     dashboard_path = Path(__file__).parent.parent / "dashboard.html"
     return FileResponse(str(dashboard_path))
 
+# Test portal route
+@app.get("/portal")
+async def portal_home():
+    return HTMLResponse(content="""
+    <!DOCTYPE html>
+    <html>
+    <head><title>Customer Portal</title></head>
+    <body>
+        <h1>Customer Portal</h1>
+        <p>Universal search is live.</p>
+        <a href="/api/universal-search">Try Universal Search</a>
+    </body>
+    </html>
+    """)
+
 @app.get("/search")
 async def get_search_dashboard():
     html_content = """
