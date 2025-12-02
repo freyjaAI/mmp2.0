@@ -80,7 +80,7 @@ async def search_data_axle_business(name: str, address: str = None, ein: str = N
         if ein:
             try:
                 response = await client.post(
-                    "https://platform.data-axle.com/v2/businesses/search",
+                    "https://platform.data-axle.com/v2/places/search",
                     headers={"Authorization": f"Bearer {data_axle_key}"},
                     json={"ein": ein, "limit": 1}
                 )
@@ -96,7 +96,7 @@ async def search_data_axle_business(name: str, address: str = None, ein: str = N
         if address:
             try:
                 response = await client.post(
-                    "https://platform.data-axle.com/v2/businesses/search",
+                    "https://platform.data-axle.com/v2/places/search",
                     headers={"Authorization": f"Bearer {data_axle_key}"},
                     json={"name": name, "address": address, "limit": 1}
                 )
@@ -110,7 +110,7 @@ async def search_data_axle_business(name: str, address: str = None, ein: str = N
         # Fallback: name-only search
         try:
             response = await client.post(
-                "https://platform.data-axle.com/v2/businesses/search",
+                "https://platform.data-axle.com/v2/places/search",
                 headers={"Authorization": f"Bearer {data_axle_key}"},
                 json={"name": name, "limit": 1}
             )
