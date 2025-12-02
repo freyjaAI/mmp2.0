@@ -160,3 +160,8 @@ class PersonReportOut(BaseModel):
     associates: List[AssociateOut]
     relatives_deep: List[RelativeOut]
     education: List[EducationOut]
+
+               # FastAPI Router
+router = APIRouter(prefix="/clear", tags=["clear"])
+
+__all__ = ["router"]
