@@ -119,6 +119,9 @@
                 <option value="person">Person</option>
                 <option value="business">Business</option>
             </select>
+
+                            <label for="ein">EIN (Optional)</label>
+                <input type="text" id="ein" placeholder="12-3456789" />
             
             <button id="searchBtn" onclick="search()">Search</button>
         </div>
@@ -130,6 +133,7 @@
         async function search() {
             const name = document.getElementById('name').value.trim();
             const entity_type = document.getElementById('entity_type').value;
+                        const ein = document.getElementById('ein').value.trim();
             const resultsDiv = document.getElementById('results');
             const searchBtn = document.getElementById('searchBtn');
             
@@ -146,7 +150,7 @@
                 const response = await fetch('/api/universal-search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, entity_type })
+                    body: JSON.stringify({ name, entity_type, ein })
                 });
                 
                 const data = await response.json();
