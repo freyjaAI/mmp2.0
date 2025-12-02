@@ -15,7 +15,7 @@ class UniversalSearchRequest(BaseModel):
     entity_type: str = "person"  # person or business
     email: str = None
     address: str = None
-        ein: str = None  # Employer Identification Number for business search
+         str = None  # Employer Identification Number for business search
 
 class UniversalSearchResponse(BaseModel):
     canon_id: str
