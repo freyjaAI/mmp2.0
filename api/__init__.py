@@ -6,7 +6,7 @@ This package contains all API endpoints and supporting modules.
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from api.billing import router as billing_router
+# from api.billing import router as billing_router
 from api.bulk import router as bulk_router
 from api.clear_clone import router as clear_router
 from api.search import router as search_router
@@ -19,7 +19,7 @@ app = FastAPI(
 )
 
 # Include all routers
-app.include_router(billing_router)
+# app.include_router(billing_router)
 app.include_router(bulk_router)
 app.include_router(clear_router)
 app.include_router(search_router)
