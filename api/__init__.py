@@ -29,7 +29,7 @@ app.include_router(search_router)
 @app.get("/dashboard")
 async def get_dashboard():
     dashboard_path = Path(__file__).parent.parent / "dashboard.html"
-    return FileResponse(str(dashboard_path))@
+    return FileResponse(str(dashboard_path))
     
 
 @app.getroot():
