@@ -2,7 +2,7 @@ import os
 import stripe
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
-from api.db import get_db
+from api.db import get_pool
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 router = APIRouter()
@@ -36,7 +36,7 @@ async def checkout_success(session_id: str):
             return RedirectResponse(url="/portal?error=no_customer")
         
         # Insert API key into database
-        conn = get_db()
+        conn = get_pool()
         cur = conn.cursor()
         
         cur.execute(
