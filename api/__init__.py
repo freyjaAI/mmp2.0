@@ -11,6 +11,7 @@ from pathlib import Path
 from api.bulk import router as bulk_router
 from api.clear_clone import router as clear_router
 from api.search import router as search_router
+from api.universal_search import router as universal_search_router
 
 # Create main FastAPI app
 app = FastAPI(
@@ -24,6 +25,7 @@ app = FastAPI(
 app.include_router(bulk_router)
 app.include_router(clear_router)
 app.include_router(search_router)
+app.include_router(universal_search_router)
 
 # Dashboard route
 @app.get("/dashboard")
