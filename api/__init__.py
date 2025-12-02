@@ -32,5 +32,6 @@ async def get_dashboard():
     return FileResponse(str(dashboard_path))
     
 
-@app.get("/"):
+@app.get("/")
+def root():
     return {"message": "MMP 2.0 Risk Analytics API", "docs": "/docs"}
