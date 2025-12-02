@@ -10,7 +10,7 @@ import psycopg2, os, datetime
 from api.billing import get_api_key
 from api.enrich import trigger_enrichments_async  # lazy enrichment
 from api.cache import get_redis  # Redis cache
-from api.enrich_relatives_deep import enrich_relatives_deep
+from api.enrich_relatives import enrich_relatives_deep
 # Pydantic models
 class SubjectOut(BaseModel):
             person_canon_id: str
