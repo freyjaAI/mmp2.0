@@ -54,6 +54,22 @@ app.include_router(billing_router)
 app.include_router(visuals_router)
 
 # Seed endpoint (temporary)
+
+# Test portal route
+@app.get("/portal")
+async def portal_home():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content="""
+    <!DOCTYPE html>
+    <html>
+    <head><title>Customer Portal</title></head>
+    <body>
+        <h1>Customer Portal</h1>
+        <p>Universal search is live.</p>
+        <a href="/api/universal-search">Try Universal Search</a>
+    </body>
+    </html>
+    """)
 @app.get("/seed")
 def seed_database():
     from api import init_db
