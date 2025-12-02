@@ -164,4 +164,21 @@ class PersonReportOut(BaseModel):
                # FastAPI Router
 router = APIRouter(prefix="/clear", tags=["clear"])
 
+@router.get("/person/{person_canon_id}")
+async def get_person_report(person_canon_id: str):
+    """
+    Get Clear-style person risk report
+    """
+    result = await trigger_enrichments_async(person_canon_id, entity_type="person")
+    return result
+
+@router.get("/business/{business_canon_id}")
+async def get_business_report(business_canon_id: str):
+    """
+    Get Clear-style business risk report
+    """
+    result = await trigger_enrichments_async(business_canon_id, entity_type="business")
+    return result
+
+
 __all__ = ["router"]
