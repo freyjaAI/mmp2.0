@@ -6,6 +6,7 @@ This package contains all API endpoints and supporting modules.
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 # from api.billing import router as billing_router
 from api.bulk import router as bulk_router
 from api.clear_clone import router as clear_router
@@ -27,7 +28,9 @@ app.include_router(search_router)
 # Dashboard route
 @app.get("/dashboard")
 async def get_dashboard():
-    return FileResponse("../dashboard.html")
-@app.get("/")
-async def root():
+    dashboard_path = Path(__file__).parent.parent / "dashboard.html"
+    return FileResponse(str(dashboard_path))@
+    
+
+@app.getroot():
     return {"message": "MMP 2.0 Risk Analytics API", "docs": "/docs"}
