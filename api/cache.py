@@ -7,6 +7,10 @@ try:
     r = redis.from_url(redis_url, decode_responses=True) if (redis_url and redis_url.strip()) else None
 except (ValueError, Exception):
     r = None  # Redis not configured or invalid URL
+
+def get_redis():
+    """Get Redis client instance. Returns None if Redis is not configured."""
+    return r
 def cache_key(func: Callable, *args, **kw):
     return f"{func.__name__}:{hash(str(args)+str(sorted(kw.items())))}"
 
