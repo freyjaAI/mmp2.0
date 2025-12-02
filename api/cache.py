@@ -3,7 +3,7 @@ from typing import Callable
 
 TTL = int(os.getenv("CACHE_TTL", 300))
 redis_url = os.getenv("REDIS_URL")
-r = redis.from_url(redis_url, decode_responses=True) if redis_url else None
+r = redis.from_url(redis_url, decode_responses=True) if (redis_url and redis_url.strip()) else None
 
 def cache_key(func: Callable, *args, **kw):
     return f"{func.__name__}:{hash(str(args)+str(sorted(kw.items())))}"
