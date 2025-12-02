@@ -68,7 +68,7 @@ async def portal_home():
     <body>
         <h1>Customer Portal</h1>
         <p>Universal search is live.</p>
-        <a href="/api/universal-search">Try Universal Search</a>
+        <a href="/search">Try Universal Search</a>
     </body>
     </html>
     """)
