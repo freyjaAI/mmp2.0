@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 import psycopg2, os, datetime
 from api.billing import get_api_key
-from api.enrich import enricher  # lazy enrichment
+from api.enrich import enrich_person, enrich_business  # lazy enrichment
 from api.cache import get_redis  # Redis cache
 from api.enrich_relatives_deep import enrich_relatives_deep
 # Pydantic models
