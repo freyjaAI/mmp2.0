@@ -27,8 +27,7 @@ app.include_router(search_router)
 # Dashboard route
 @app.get("/dashboard")
 async def get_dashboard():
-    return FileResponse("dashboard.html")
-
+    return FileResponse("../dashboard.html")
 @app.get("/")
 async def root():
     return {"message": "MMP 2.0 Risk Analytics API", "docs": "/docs"}
