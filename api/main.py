@@ -70,6 +70,14 @@ async def portal_home():
     </body>
     </html>
     """)
+
+# Search dashboard route
+@app.get("/search")
+async def get_search_dashboard():
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+    search_path = Path(__file__).parent.parent / "portal/search_dashboard.html"
+    return FileResponse(str(search_path))
 @app.get("/seed")
 def seed_database():
     from api import init_db
