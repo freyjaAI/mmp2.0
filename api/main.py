@@ -26,6 +26,7 @@ from api.clear_clone import router as clear_router
 from api.bulk import router as bulk_router
 from portal.success import router as billing_router
 from api.visuals import router as visuals_router
+from api.universal_search import router as universal_search_router
 
 app = FastAPI(
     title="MMP 2.0 Risk Analytics API",
@@ -52,6 +53,7 @@ app.include_router(clear_router)
 app.include_router(bulk_router)
 app.include_router(billing_router)
 app.include_router(visuals_router)
+app.include_router(universal_search_router)
 
 # Seed endpoint (temporary)
 
