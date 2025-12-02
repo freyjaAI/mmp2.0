@@ -32,6 +32,11 @@ app.include_router(universal_search_router)
 async def get_dashboard():
     dashboard_path = Path(__file__).parent.parent / "dashboard.html"
     return FileResponse(str(dashboard_path))
+
+@app.get("/search")
+async def get_search_dashboard():
+    search_path = Path(__file__).parent.parent / "portal/search_dashboard.html"
+    return FileResponse(str(search_path))
     
 
 @app.get("/")
