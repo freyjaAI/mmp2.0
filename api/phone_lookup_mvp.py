@@ -1,4 +1,4 @@
-"""Phone Lookup MVP - Simple endpoint for business owner + associates contact info"""
+"""Phone Lookup MVP - Returns business owner + associates contact info"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
@@ -6,6 +6,15 @@ import os
 from typing import List, Optional
 
 router = APIRouter(prefix="/api", tags=["phone-lookup"])
+
+# Data Axle API configuration
+DATA_AXLE_API_KEY = os.getenv("DATA_AXLE_API_KEY")
+DATA_AXLE_BASE_URL = "https://api.data-axle.com/v1"
+
+class PhoneLookupRequest(BaseModel):
+    business_name: str
+    owner_name: Optional[str] = None
+    ein: Optional[str] = None
 
 class Associate(BaseModel):
     name: str
@@ -22,127 +31,129 @@ class PhoneLookupResponse(BaseModel):
     owner_address: Optional[str] = None
     associates: List[Associate] = []
 
-class PhoneLookupRequest(BaseModel):
-    business_name: str
-
-@router.post("/phone-lookup-mvp", response_model=PhoneLookupResponse)
-async def phone_lookup_mvp(request: PhoneLookupRequest):
+@router.post("/phone-lookup", response_model=PhoneLookupResponse)
+async def lookup_phone(request: PhoneLookupRequest):
     """
-    Phone lookup MVP - returns business + owner + associates contact info
-    Uses Data Axle API (free tier) with public page scraping fallback
+    Lookup business owner and associates contact information.
+    Accepts: business_name, owner_name (optional), ein (optional)
+    Returns: phone numbers and addresses for business owner and associates
     """
-    business_name = request.business_name
-    print(f"[PHONE LOOKUP MVP] Searching for: {business_name}")
     
-    # Initialize response
-    response = PhoneLookupResponse(
-        business_name=business_name,
-        associates=[]
-    )
+    if not DATA_AXLE_API_KEY:
+        raise HTTPException(status_code=500, detail="Data Axle API key not configured")
     
-    # Step 1: Search Data Axle Business API
-    data_axle_key = os.getenv("DATA_AXLE_API_KEY")
-    
-    if data_axle_key:
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Try Data Axle Business Search API
-                url = "https://platform.data-axle.com/api/businesses/search"
-                headers = {"Authorization": f"Bearer {data_axle_key}"}
-                payload = {
-                    "name": business_name,
-                    "select": "name,address,phone,owner_name",
-                    "limit": 1
-                }
-                
-                print(f"[DATA AXLE] Searching business: {url}")
-                resp = await client.post(url, json=payload, headers=headers, timeout=15)
-                
-                print(f"[DATA AXLE] Business search status: {resp.status_code}")
-                print(f"[DATA AXLE] Response: {resp.text[:500]}")
-                
-                if resp.status_code == 200:
-                    data = resp.json()
-                    results = data.get("results", [])
-                    if results and len(results) > 0:
-                        business = results[0]
-                        response.business_phone = business.get("phone", "")
-                        response.business_address = business.get("address", "")
-                        response.owner_name = business.get("owner_name", "")
-                        print(f"[DATA AXLE] Found business: {business.get('name')}")
-        except Exception as e:
-            print(f"[DATA AXLE] Business search error: {e}")
-    
-    # Step 2: If we have owner name, search Data Axle Person API for owner contact
-    if response.owner_name and data_axle_key:
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                url = "https://platform.data-axle.com/api/people/search"
-                headers = {"Authorization": f"Bearer {data_axle_key}"}
-                payload = {
-                    "name": response.owner_name,
-                    "select": "name,address,phone,job_title",
-                    "limit": 5
-                }
-                
-                print(f"[DATA AXLE] Searching owner: {response.owner_name}")
-                resp = await client.post(url, json=payload, headers=headers, timeout=15)
-                
-                print(f"[DATA AXLE] Person search status: {resp.status_code}")
-                
-                if resp.status_code == 200:
-                    data = resp.json()
-                    results = data.get("results", [])
-                    if results and len(results) > 0:
-                        # Use first person result
-                        owner = results[0]
-                        response.owner_phone = owner.get("phone", "")
-                        response.owner_address = owner.get("address", "")
-                        print(f"[DATA AXLE] Found owner contact")
-                        
-                        # Remaining people are associates
-                        for i, person in enumerate(results[1:5], 1):  # Cap at 4 associates
-                            associate = Associate(
-                                name=person.get("name", ""),
-                                phone=person.get("phone", ""),
-                                address=person.get("address", ""),
-                                relationship=person.get("job_title", "associate")
-                            )
-                            response.associates.append(associate)
-        except Exception as e:
-            print(f"[DATA AXLE] Person search error: {e}")
-    
-    # Step 3: Fallback to OpenCorporates for basic business info if Data Axle failed
-    if not response.business_address:
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                oc_token = os.getenv("OPENCORPORATES_API_TOKEN")
-                params = {"q": business_name, "jurisdiction_code": "us"}
-                if oc_token:
-                    params["api_token"] = oc_token
-                
-                print(f"[OPENCORPORATES] Fallback search")
-                resp = await client.get(
-                    "https://api.opencorporates.com/v0.4/companies/search",
-                    params=params,
-                    timeout=15
+    try:
+        async with httpx.AsyncClient() as client:
+            # Search for business using Data Axle Places API
+            search_params = {
+                "company": request.business_name,
+                "limit": 10
+            }
+            
+            # Add optional parameters if provided
+            if request.ein:
+                search_params["ein"] = request.ein
+            if request.owner_name:
+                search_params["contact_name"] = request.owner_name
+            
+            headers = {
+                "Authorization": f"Bearer {DATA_AXLE_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            # Query Data Axle Places API for business information
+            business_response = await client.get(
+                f"{DATA_AXLE_BASE_URL}/places/search",
+                headers=headers,
+                params=search_params,
+                timeout=30.0
+            )
+            
+            if business_response.status_code != 200:
+                raise HTTPException(
+                    status_code=business_response.status_code,
+                    detail=f"Data Axle API error: {business_response.text}"
                 )
-                
-                if resp.status_code == 200:
-                    data = resp.json()
-                    companies = data.get("results", {}).get("companies", [])
-                    if companies:
-                        company = companies[0].get("company", {})
-                        response.business_address = company.get("registered_address_in_full", "")
-                        print(f"[OPENCORPORATES] Found business address")
-        except Exception as e:
-            print(f"[OPENCORPORATES] Error: {e}")
+            
+            business_data = business_response.json()
+            
+            # Check if we got any results
+            if not business_data.get("results") or len(business_data["results"]) == 0:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No contact information found for business: {request.business_name}"
+                )
+            
+            # Get the first matching business
+            business = business_data["results"][0]
+            
+            # Extract business contact information
+            response_data = PhoneLookupResponse(
+                business_name=business.get("company_name", request.business_name),
+                business_phone=business.get("phone"),
+                business_address=format_address(business),
+                owner_name=request.owner_name,
+                associates=[]
+            )
+            
+            # If we have a contact name from the business, use it
+            if business.get("contact_name"):
+                response_data.owner_name = business.get("contact_name")
+            
+            # Try to get additional contact information for owner
+            if response_data.owner_name:
+                try:
+                    contact_response = await client.get(
+                        f"{DATA_AXLE_BASE_URL}/contacts/search",
+                        headers=headers,
+                        params={
+                            "name": response_data.owner_name,
+                            "company": request.business_name,
+                            "limit": 5
+                        },
+                        timeout=30.0
+                    )
+                    
+                    if contact_response.status_code == 200:
+                        contact_data = contact_response.json()
+                        if contact_data.get("results"):
+                            owner_contact = contact_data["results"][0]
+                            response_data.owner_phone = owner_contact.get("phone")
+                            response_data.owner_address = format_address(owner_contact)
+                            
+                            # Add other contacts as associates
+                            for contact in contact_data["results"][1:]:
+                                associate = Associate(
+                                    name=contact.get("full_name", "Unknown"),
+                                    phone=contact.get("phone"),
+                                    address=format_address(contact),
+                                    relationship=contact.get("title", "Associate")
+                                )
+                                response_data.associates.append(associate)
+                except Exception:
+                    # If contact lookup fails, continue with business data only
+                    pass
+            
+            return response_data
+            
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Data Axle API timeout")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Error connecting to Data Axle API: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+def format_address(data: dict) -> Optional[str]:
+    """Format address from Data Axle response data"""
+    address_parts = []
     
-    # Check if we found any data
-    if not response.business_phone and not response.business_address and not response.owner_phone:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No contact information found for business: {business_name}"
-        )
+    if data.get("address"):
+        address_parts.append(data["address"])
+    if data.get("city"):
+        address_parts.append(data["city"])
+    if data.get("state"):
+        address_parts.append(data["state"])
+    if data.get("zip"):
+        address_parts.append(data["zip"])
     
-    return response
+    return ", ".join(address_parts) if address_parts else None
