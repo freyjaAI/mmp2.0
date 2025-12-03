@@ -1,5 +1,4 @@
 """Universal search - finds anyone by name using external APIs"""
-
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import httpx
@@ -23,7 +22,6 @@ class UniversalSearchResponse(BaseModel):
     entity_type: str
     status: str
     message: str
-
 
 async def search_data_axle_person(name: str, email: str = None) -> dict:
     """Search Data Axle for a person, with fallback to name-only search"""
@@ -64,10 +62,9 @@ async def search_data_axle_person(name: str, email: str = None) -> dict:
             
             results = response.json().get("results", [])
             return results[0] if results else None
-            
+        
         except Exception:
             return None
-
 
 async def search_data_axle_business(name: str, address: str = None, ein: str = None) -> dict:
     """Search Data Axle for a business, with fallback to name-only search"""
@@ -76,43 +73,47 @@ async def search_data_axle_business(name: str, address: str = None, ein: str = N
         raise HTTPException(500, "Data Axle API key not configured")
     
     async with httpx.AsyncClient(timeout=30.0) as client:
-                # Try with EIN first if provided
+        # Try with EIN first if provided
         if ein:
             try:
-                response = await client.post(
-                    "https://platform.data-axle.com/v2/places/search",
-                    headers={"Authorization": f"Bearer {data_axle_key}"},
-                    json={"ein": ein, "limit": 1}
+                response = await client.request(
+                    "GET",
+                    "https://api.data-axle.com/v1/places/search",
+                    headers={"X-AUTH-TOKEN": data_axle_key},
+                    json={"filter": {"relation": "in", "attribute": "eins", "value": [ein]}, "limit": 1}
                 )
                 if response.status_code == 200:
-                    results = response.json().get("results", [])
-                    if results:
-                        return results[0]
+                    data = response.json()
+                    documents = data.get("documents", [])
+                    if documents:
+                        return documents[0]
             except:
                 pass  # Fall through to address search
         
-
         # Try with address first if provided
         if address:
             try:
-                response = await client.post(
-                    "https://platform.data-axle.com/v2/places/search",
-                    headers={"Authorization": f"Bearer {data_axle_key}"},
-                    json={"name": name, "address": address, "limit": 1}
+                response = await client.request(
+                    "GET",
+                    "https://api.data-axle.com/v1/places/search",
+                    headers={"X-AUTH-TOKEN": data_axle_key},
+                    json={"query": f"{name} {address}", "limit": 1}
                 )
                 if response.status_code == 200:
-                    results = response.json().get("results", [])
-                    if results:
-                        return results[0]
+                    data = response.json()
+                    documents = data.get("documents", [])
+                    if documents:
+                        return documents[0]
             except:
                 pass  # Fall through to name-only search
         
         # Fallback: name-only search
         try:
-            response = await client.post(
-                "https://platform.data-axle.com/v2/places/search",
-                headers={"Authorization": f"Bearer {data_axle_key}"},
-                json={"name": name, "limit": 1}
+            response = await client.request(
+                "GET",
+                "https://api.data-axle.com/v1/places/search",
+                headers={"X-AUTH-TOKEN": data_axle_key},
+                json={"query": name, "limit": 1}
             )
             
             # Handle HTML 404 error page from Data Axle
@@ -122,12 +123,12 @@ async def search_data_axle_business(name: str, address: str = None, ein: str = N
             if response.status_code != 200:
                 return None
             
-            results = response.json().get("results", [])
-            return results[0] if results else None
-            
+            data = response.json()
+            documents = data.get("documents", [])
+            return documents[0] if documents else None
+        
         except Exception:
             return None
-
 
 @router.post("/universal-search")
 async def universal_search(request: UniversalSearchRequest, background_tasks: BackgroundTasks):
@@ -229,6 +230,5 @@ async def universal_search(request: UniversalSearchRequest, background_tasks: Ba
         raise HTTPException(504, "External API timeout - please try again")
     except Exception as e:
         raise HTTPException(500, f"Search error: {str(e)}")
-
 
 __all__ = ["router"]
