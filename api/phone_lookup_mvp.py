@@ -59,7 +59,7 @@ async def lookup_phone(request: PhoneLookupRequest):
                 financial_response = await client.post(
                 
                     
-                f        "{DATA_AXLE_FINANCIAL_BASE_URL}/search",
+                f"{DATA_AXLE_FINANCIAL_BASE_URL}/search",
                     headers=headers,
                     json={
                         "filter": {
