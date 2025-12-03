@@ -97,8 +97,8 @@ async def lookup_phone(request: PhoneLookupRequest):
             business.get("state"),
             business.get("zip")
         ]
-        business_address = ", ".join(p for p in address_parts if p)            
-            return PhoneLookupResponse(
+        business_address = ", ".join(p for p in address_parts if p)                 
+                return PhoneLookupResponse(
                 business_name=request.business_name,
                 business_phone=business_phone,
                 business_address=business_address,
