@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api", tags=["phone-lookup"])
 # Data Axle API configuration
 DATA_AXLE_API_KEY = os.getenv("DATA_AXLE_API_KEY")
 DATA_AXLE_BASE_URL = "https://api.data-axle.com/v1/places"
+DATA_AXLE_FINANCIAL_BASE_URL = "https://api.data-axle.com/v1/financial_data"
 
 class PhoneLookupRequest(BaseModel):
     business_name: str
@@ -55,8 +56,9 @@ async def lookup_phone(request: PhoneLookupRequest):
             
             # If EIN provided, use Financial Data API
             if request.ein:
-                financial_response = await client.post(
-                    f"{DATA_AXLE_BASE_URL}/financial_data/search",
+                financial_response = await  client.post
+                (
+                    f"{DATA_AXLE_FINANCIAL_BASE_URL}/search",
                     headers=headers,
                     json={
                         "filter": {
@@ -77,7 +79,7 @@ async def lookup_phone(request: PhoneLookupRequest):
             # If no EIN or EIN search failed, use Places API with business name
             if not business_data:
                 places_response = await client.post(
-                    f"{DATA_AXLE_BASE_URL}/places/search",
+                    f"{DATA_AXLE_BASE_URL}/search",
                     headers=headers,
                     json={
                         "query": request.business_name,
@@ -117,7 +119,7 @@ async def lookup_phone(request: PhoneLookupRequest):
             
             if place_id:
                 contacts_response = await client.post(
-                    f"{DATA_AXLE_BASE_URL}/places/search",
+                    f"{DATA_AXLE_BASE_UR/searchL}",
                     headers=headers,
                     json={
                         "filter": {
