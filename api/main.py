@@ -28,6 +28,7 @@ from portal.success import router as billing_router
 from api.visuals import router as visuals_router
 from api.universal_search import router as universal_search_router
 
+from api.phone_lookup_mvp import router as phone_lookup_router
 app = FastAPI(
     title="MMP 2.0 Risk Analytics API",
     description="Production-grade risk intelligence system",
@@ -55,6 +56,7 @@ app.include_router(billing_router)
 app.include_router(visuals_router)
 app.include_router(universal_search_router)
 
+app.include_router(phone_lookup_router)
 # Seed endpoint (temporary)
 
 # Test portal route
