@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import httpx
 import os
+import json
 from uuid import uuid4
 from api.db import get_pool
 from api.enrich import trigger_enrichments_async
@@ -33,24 +34,30 @@ async def search_data_axle_person(name: str, email: str = None) -> dict:
         # Try with email first if provided
         if email:
             try:
+                print(f"[DATA AXLE] Searching person with email: {name}, {email}")
                 response = await client.post(
                     "https://platform.data-axle.com/api/people/search",
                     headers={"X-AUTH-TOKEN": data_axle_key},
                     json={"name": name, "email": email, "limit": 1}
                 )
+                print(f"[DATA AXLE] Person email search status: {response.status_code}")
+                print(f"[DATA AXLE] Response: {response.text[:500]}")
                 if response.status_code == 200:
                     people = response.json().get("documents", [])
                     if people:
                         return people[0]
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[DATA AXLE] Email search error: {e}")
         
         # Fallback: search by name only
+        print(f"[DATA AXLE] Searching person by name only: {name}")
         response = await client.post(
             "https://platform.data-axle.com/api/people/search",
             headers={"X-AUTH-TOKEN": data_axle_key},
             json={"name": name, "limit": 1}
         )
+        print(f"[DATA AXLE] Person name search status: {response.status_code}")
+        print(f"[DATA AXLE] Response: {response.text[:500]}")
         if response.status_code == 200:
             people = response.json().get("documents", [])
             if people:
@@ -68,39 +75,48 @@ async def search_data_axle_business(name: str, address: str = None, ein: str = N
         # PRIORITY 1: Try EIN search first if provided
         if ein:
             try:
+                print(f"[DATA AXLE] Searching business by EIN: {ein}")
                 response = await client.post(
                     "https://platform.data-axle.com/api/businesses/search",
                     headers={"X-AUTH-TOKEN": data_axle_key},
                     json={"ein": ein, "limit": 1}
                 )
+                print(f"[DATA AXLE] Business EIN search status: {response.status_code}")
+                print(f"[DATA AXLE] Response: {response.text[:500]}")
                 if response.status_code == 200:
                     businesses = response.json().get("documents", [])
                     if businesses:
                         return businesses[0]
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[DATA AXLE] EIN search error: {e}")
         
         # PRIORITY 2: Try with address if provided
         if address:
             try:
+                print(f"[DATA AXLE] Searching business with address: {name}, {address}")
                 response = await client.post(
                     "https://platform.data-axle.com/api/businesses/search",
                     headers={"X-AUTH-TOKEN": data_axle_key},
                     json={"name": name, "address": address, "limit": 1}
                 )
+                print(f"[DATA AXLE] Business address search status: {response.status_code}")
+                print(f"[DATA AXLE] Response: {response.text[:500]}")
                 if response.status_code == 200:
                     businesses = response.json().get("documents", [])
                     if businesses:
                         return businesses[0]
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[DATA AXLE] Address search error: {e}")
         
         # PRIORITY 3: Fallback to name-only search
+        print(f"[DATA AXLE] Searching business by name only: {name}")
         response = await client.post(
             "https://platform.data-axle.com/api/businesses/search",
             headers={"X-AUTH-TOKEN": data_axle_key},
             json={"name": name, "limit": 1}
         )
+        print(f"[DATA AXLE] Business name search status: {response.status_code}")
+        print(f"[DATA AXLE] Response: {response.text[:500]}")
         if response.status_code == 200:
             businesses = response.json().get("documents", [])
             if businesses:
@@ -112,6 +128,8 @@ async def search_data_axle_business(name: str, address: str = None, ein: str = N
 async def universal_search(request: UniversalSearchRequest, bg: BackgroundTasks):
     """Universal search endpoint - searches Data Axle and enriches"""
     
+    print(f"[SEARCH] Received request: type={request.entity_type}, name={request.name}, ein={request.ein}")
+    
     # Search Data Axle based on entity type
     result = None
     if request.entity_type.lower() == "business":
@@ -120,7 +138,10 @@ async def universal_search(request: UniversalSearchRequest, bg: BackgroundTasks)
         result = await search_data_axle_person(request.name, request.email)
     
     if not result:
+        print(f"[SEARCH] No {request.entity_type} found")
         raise HTTPException(404, {"detail": f"No {request.entity_type} found with name '{request.name}'"})
+    
+    print(f"[SEARCH] Found {request.entity_type}")
     
     # Generate canon_id
     canon_id = str(uuid4())
