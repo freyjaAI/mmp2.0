@@ -48,7 +48,7 @@ async def lookup_phone(request: PhoneLookupRequest):
             # Use simple GET request with query parameters
             search_url = f"{DATA_AXLE_BASE_URL}/search"
             params = {
-                "term": request.business_name,
+                "query": request.business_name,
                 "limit": 5
             }
             
@@ -76,7 +76,7 @@ async def lookup_phone(request: PhoneLookupRequest):
                 )
             
             # Extract results
-            results = data.get("listings", []) if isinstance(data, dict) else []
+            results = data.get("documents", []) if isinstance(data, dict) else []
             
             if not results:
                 return PhoneLookupResponse(
@@ -88,9 +88,16 @@ async def lookup_phone(request: PhoneLookupRequest):
             business = results[0] if results else {}
             
             # Extract business info
-            business_phone = business.get("phone", business.get("primaryPhone"))
-            business_address = business.get("address", {}).get("fullAddress") if isinstance(business.get("address"), dict) else business.get("address")
-            
+        business_phone = business.get("phone")
+        
+        # Build address from component fields
+        address_parts = [
+            business.get("street"),
+            business.get("city"),
+            business.get("state"),
+            business.get("zip")
+        ]
+        business_address = ", ".join(p for p in address_parts if p)            
             return PhoneLookupResponse(
                 business_name=request.business_name,
                 business_phone=business_phone,
