@@ -56,9 +56,10 @@ async def lookup_phone(request: PhoneLookupRequest):
             
             # If EIN provided, use Financial Data API
             if request.ein:
-                financial_response = await  client.post
-                (
-                    f"{DATA_AXLE_FINANCIAL_BASE_URL}/search",
+                financial_response = await client.post(
+                
+                    
+                f        "{DATA_AXLE_FINANCIAL_BASE_URL}/search",
                     headers=headers,
                     json={
                         "filter": {
