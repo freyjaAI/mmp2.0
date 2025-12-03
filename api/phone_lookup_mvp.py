@@ -1,4 +1,4 @@
-"""Phone Lookup MVP - Returns business owner + associates contact info using Data Axle APIs"""
+"""Phone Lookup MVP - Simple working version using GET requests"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
@@ -10,7 +10,6 @@ router = APIRouter(prefix="/api", tags=["phone-lookup"])
 # Data Axle API configuration
 DATA_AXLE_API_KEY = os.getenv("DATA_AXLE_API_KEY")
 DATA_AXLE_BASE_URL = "https://api.data-axle.com/v1/places"
-DATA_AXLE_FINANCIAL_BASE_URL = "https://api.data-axle.com/v1/financial_data"
 
 class PhoneLookupRequest(BaseModel):
     business_name: str
@@ -31,14 +30,12 @@ class PhoneLookupResponse(BaseModel):
     owner_phone: Optional[str] = None
     owner_address: Optional[str] = None
     associates: List[Associate] = []
+    data_source: str = "data-axle"
 
 @router.post("/phone-lookup-mvp", response_model=PhoneLookupResponse)
 async def lookup_phone(request: PhoneLookupRequest):
     """
-    Phone Lookup MVP - Find business owner and associates contact info.
-    
-    Input: business_name, owner_name (optional), ein (optional)
-    Output: Owner phone/address + Associates with their phone/address
+    Phone Lookup MVP - Find business contact info using simple GET requests
     """
     
     if not DATA_AXLE_API_KEY:
@@ -46,147 +43,69 @@ async def lookup_phone(request: PhoneLookupRequest):
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            headers = {
-                "X-AUTH-TOKEN": DATA_AXLE_API_KEY,
-                "Content-Type": "application/json"
+            headers = {"X-AUTH-TOKEN": DATA_AXLE_API_KEY}
+            
+            # Use simple GET request with query parameters
+            search_url = f"{DATA_AXLE_BASE_URL}/search"
+            params = {
+                "term": request.business_name,
+                "limit": 5
             }
             
-            # STEP 1: Find the business using appropriate API
-            business_data = None
-            
-            # If EIN provided, use Financial Data API
-            if request.ein:
-                financial_response = await client.post(
-                
-                    
-                f"{DATA_AXLE_FINANCIAL_BASE_URL}/search",
-                    headers=headers,
-                    json={
-                        "filter": {
-                            "relation": "equals",
-                            "attribute": "company_ein",
-                            "value": request.ein
-                        },
-                        "limit": 1,
-                        "fields": ["company_name", "company_ein", "company_address", "company_city", "company_state", "company_postal_code", "phone"]
-                    }
-                )
-                
-                if financial_response.status_code == 200:
-                    financial_data = financial_response.json()
-                    if financial_data.get("documents") and len(financial_data["documents"]) > 0:
-                        business_data = financial_data["documents"][0]
-            
-            # If no EIN or EIN search failed, use Places API with business name
-            if not business_data:
-                places_response = await client.post(
-                    f"{DATA_AXLE_BASE_URL}/search",
-                    headers=headers,
-                    json={
-                        "query": request.business_name,
-                        "limit": 5,
-                        "fields": ["name", "phone", "street", "city", "state", "zip", "id"]
-                    }
-                )
-                
-                if places_response.status_code != 200:
-                    raise HTTPException(
-                        status_code=places_response.status_code,
-                        detail=f"Data Axle Places API error: {places_response.text}"
-                    )
-                
-                places_data = places_response.json()
-                
-                if not places_data.get("documents") or len(places_data["documents"]) == 0:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"No business found for: {request.business_name}"
-                    )
-                
-                business_data = places_data["documents"][0]
-            
-            # Extract business information
-            response_data = PhoneLookupResponse(
-                business_name=business_data.get("name") or business_data.get("company_name", request.business_name),
-                business_phone=business_data.get("phone"),
-                business_address=format_address(business_data),
-                owner_name=request.owner_name,
-                associates=[]
+            response = await client.get(
+                search_url,
+                headers=headers,
+                params=params
             )
             
-            # STEP 2: Get contacts/people at the business (for owner + associates)
-            # Use Places API with contacts perspective
-            place_id = business_data.get("id")
-            
-            if place_id:
-                contacts_response = await client.post(
-                    f"{DATA_AXLE_BASE_UR/searchL}",
-                    headers=headers,
-                    json={
-                        "filter": {
-                            "relation": "equals",
-                            "attribute": "id",
-                            "value": place_id
-                        },
-                        "perspective": "contacts",
-                        "limit": 20,
-                        "fields": ["first_name", "last_name", "phone", "street", "city", "state", "zip", "professional_title"]
-                    }
+            # Handle non-200 responses
+            if response.status_code != 200:
+                # Return empty result instead of crashing
+                return PhoneLookupResponse(
+                    business_name=request.business_name,
+                    data_source="no-results"
                 )
-                
-                if contacts_response.status_code == 200:
-                    contacts_data = contacts_response.json()
-                    
-                    if contacts_data.get("documents"):
-                        for contact in contacts_data["documents"]:
-                            contact_name = f"{contact.get('first_name', '')} {contact.get('last_name', '')}".strip()
-                            
-                            if not contact_name:
-                                continue
-                            
-                            # Check if this is the owner
-                            if request.owner_name and request.owner_name.lower() in contact_name.lower():
-                                response_data.owner_name = contact_name
-                                response_data.owner_phone = contact.get("phone")
-                                response_data.owner_address = format_address(contact)
-                            else:
-                                # Add as associate
-                                associate = Associate(
-                                    name=contact_name,
-                                    phone=contact.get("phone"),
-                                    address=format_address(contact),
-                                    title=contact.get("professional_title")
-                                )
-                                response_data.associates.append(associate)
             
-            return response_data
+            # Try to parse JSON, handle any errors
+            try:
+                data = response.json()
+            except Exception:
+                return PhoneLookupResponse(
+                    business_name=request.business_name,
+                    data_source="json-error"
+                )
+            
+            # Extract results
+            results = data.get("listings", []) if isinstance(data, dict) else []
+            
+            if not results:
+                return PhoneLookupResponse(
+                    business_name=request.business_name,
+                    data_source="no-results"
+                )
+            
+            # Get first result
+            business = results[0] if results else {}
+            
+            # Extract business info
+            business_phone = business.get("phone", business.get("primaryPhone"))
+            business_address = business.get("address", {}).get("fullAddress") if isinstance(business.get("address"), dict) else business.get("address")
+            
+            return PhoneLookupResponse(
+                business_name=request.business_name,
+                business_phone=business_phone,
+                business_address=business_address,
+                owner_name=request.owner_name,
+                data_source="data-axle-success"
+            )
             
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Data Axle API timeout")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Error connecting to Data Axle API: {str(e)}")
-    except HTTPException:
-        raise
+        return PhoneLookupResponse(
+            business_name=request.business_name,
+            data_source="timeout"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-def format_address(data: dict) -> Optional[str]:
-    """Format address from Data Axle response data"""
-    address_parts = []
-    
-    # Handle different field names from different APIs
-    street = data.get("street") or data.get("company_address")
-    city = data.get("city") or data.get("company_city")
-    state = data.get("state") or data.get("company_state")
-    zip_code = data.get("zip") or data.get("company_postal_code")
-    
-    if street:
-        address_parts.append(street)
-    if city:
-        address_parts.append(city)
-    if state:
-        address_parts.append(state)
-    if zip_code:
-        address_parts.append(str(zip_code))
-    
-    return ", ".join(address_parts) if address_parts else None
+        return PhoneLookupResponse(
+            business_name=request.business_name,
+            data_source=f"error: {str(e)[:50]}"
+        )
