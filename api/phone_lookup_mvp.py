@@ -46,7 +46,7 @@ async def lookup_phone(request: PhoneLookupRequest):
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             headers = {
-                "Authorization": f"Bearer {DATA_AXLE_API_KEY}",
+                "X-AUTH-TOKEN": DATA_AXLE_API_KEY,
                 "Content-Type": "application/json"
             }
             
