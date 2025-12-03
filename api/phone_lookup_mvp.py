@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api", tags=["phone-lookup"])
 
 # Data Axle API configuration
 DATA_AXLE_API_KEY = os.getenv("DATA_AXLE_API_KEY")
-DATA_AXLE_BASE_URL = "https://api.data-axle.com/v1"
+DATA_AXLE_BASE_URL = "https://api.data-axle.com/v1/places"
 
 class PhoneLookupRequest(BaseModel):
     business_name: str
