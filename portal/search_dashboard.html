@@ -90,6 +90,53 @@
             font-size: 14px;
             line-height: 1.5;
         }
+        .business-card {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .business-card h4 {
+            color: #7ee787;
+            margin-bottom: 8px;
+        }
+        .info-row {
+            padding: 6px 0;
+            border-bottom: 1px solid #21262d;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #8b949e;
+            display: inline-block;
+            width: 140px;
+        }
+        .info-value {
+            color: #e6edf3;
+        }
+        .associates-section {
+            margin-top: 16px;
+        }
+        .associate-card {
+            background: #0d1117;
+            border-left: 3px solid #58a6ff;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+        .associate-card .name {
+            color: #58a6ff;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .associate-card .relationship {
+            color: #f0883e;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
         .error {
             background: #490b0b;
             border-color: #da3633;
@@ -108,20 +155,35 @@
 <body>
     <div class="container">
         <h1>MMP 2.0 Universal Search</h1>
-        <p class="subtitle">Search for any person or business - we'll find them and build a risk report</p>
+        <p class="subtitle">Search by name, phone, or EIN - we'll find them and build a risk report</p>
         
         <div class="search-box">
-            <label for="name">Name</label>
-            <input type="text" id="name" placeholder="e.g., John Smith or Tesla Inc" />
-            
-            <label for="entity_type">Type</label>
-            <select id="entity_type">
-                <option value="person">Person</option>
-                <option value="business">Business</option>
+            <label for="searchType">Search By</label>
+            <select id="searchType" onchange="toggleSearchFields()">
+                <option value="name">Name</option>
+                <option value="phone">Phone Number</option>
             </select>
 
-                            <label for="ein">EIN (Optional)</label>
+            <!-- Name Search Fields -->
+            <div id="nameFields">
+                <label for="name">Name</label>
+                <input type="text" id="name" placeholder="e.g., John Smith or Tesla Inc" />
+                
+                <label for="entity_type">Type</label>
+                <select id="entity_type">
+                    <option value="person">Person</option>
+                    <option value="business">Business</option>
+                </select>
+
+                <label for="ein">EIN (Optional)</label>
                 <input type="text" id="ein" placeholder="12-3456789" />
+            </div>
+
+            <!-- Phone Search Field -->
+            <div id="phoneFields" style="display:none;">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" placeholder="713-555-1212 or 7135551212" />
+            </div>
             
             <button id="searchBtn" onclick="search()">Search</button>
         </div>
@@ -130,55 +192,135 @@
     </div>
 
     <script>
+        function toggleSearchFields() {
+            const searchType = document.getElementById('searchType').value;
+            document.getElementById('nameFields').style.display = searchType === 'name' ? 'block' : 'none';
+            document.getElementById('phoneFields').style.display = searchType === 'phone' ? 'block' : 'none';
+        }
+
+        function formatPhoneLookupResults(data) {
+            let html = '<div class="result success"><h3>✓ Business Found</h3>';
+            
+            // Business Info
+            html += '<div class="business-card">';
+            html += '<h4>Business Information</h4>';
+            html += `<div class="info-row"><span class="info-label">Business Name:</span><span class="info-value">${data.business_name || 'N/A'}</span></div>`;
+            html += `<div class="info-row"><span class="info-label">Phone:</span><span class="info-value">${data.business_phone || 'N/A'}</span></div>`;
+            html += `<div class="info-row"><span class="info-label">Address:</span><span class="info-value">${data.business_address || 'N/A'}</span></div>`;
+            html += '</div>';
+
+            // Owner Info
+            if (data.owner_name || data.owner_phone || data.owner_address) {
+                html += '<div class="business-card">';
+                html += '<h4>Owner Information</h4>';
+                html += `<div class="info-row"><span class="info-label">Name:</span><span class="info-value">${data.owner_name || 'N/A'}</span></div>`;
+                html += `<div class="info-row"><span class="info-label">Phone:</span><span class="info-value">${data.owner_phone || 'N/A'}</span></div>`;
+                html += `<div class="info-row"><span class="info-label">Address:</span><span class="info-value">${data.owner_address || 'N/A'}</span></div>`;
+                html += '</div>';
+            }
+
+            // Associates
+            if (data.associates && data.associates.length > 0) {
+                html += '<div class="associates-section">';
+                html += '<h4 style="color: #c9d1d9; margin-bottom: 12px;">Associates</h4>';
+                data.associates.forEach(assoc => {
+                    html += '<div class="associate-card">';
+                    html += `<div class="relationship">${assoc.relationship || 'Associate'}</div>`;
+                    html += `<div class="name">${assoc.name}</div>`;
+                    if (assoc.phone) html += `<div class="info-row"><span class="info-label">Phone:</span><span class="info-value">${assoc.phone}</span></div>`;
+                    if (assoc.address) html += `<div class="info-row"><span class="info-label">Address:</span><span class="info-value">${assoc.address}</span></div>`;
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
         async function search() {
-            const name = document.getElementById('name').value.trim();
-            const entity_type = document.getElementById('entity_type').value;
-                        const ein = document.getElementById('ein').value.trim();
+            const searchType = document.getElementById('searchType').value;
             const resultsDiv = document.getElementById('results');
             const searchBtn = document.getElementById('searchBtn');
             
-            if (!name) {
-                resultsDiv.innerHTML = '<div class="result error"><h3>Error</h3><p>Please enter a name</p></div>';
-                return;
-            }
-            
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
-            resultsDiv.innerHTML = '<div class="loading">Searching Data Axle API...</div>';
             
             try {
-                const response = await fetch('/api/universal-search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, entity_type, ein })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    resultsDiv.innerHTML = `
-                        <div class="result success">
-                            <h3>✓ Search Complete</h3>
-                            <p style="margin: 12px 0; color: #7ee787;">
-                                Canon ID: <strong>${data.canon_id}</strong>
-                            </p>
-                            <p style="margin-bottom: 12px; color: #c9d1d9;">
-                                ${data.message || 'Record created. Background enrichment started.'}
-                            </p>
-                            <pre>${JSON.stringify(data, null, 2)}</pre>
-                            <p style="margin-top: 12px; color: #8b949e; font-size: 14px;">
-                                View full report at: <a href="/clear/${entity_type}/${data.canon_id}" 
-                                style="color: #58a6ff;">/clear/${entity_type}/${data.canon_id}</a>
-                            </p>
-                        </div>
-                    `;
+                if (searchType === 'phone') {
+                    // Phone lookup
+                    const phone = document.getElementById('phone').value.trim();
+                    if (!phone) {
+                        resultsDiv.innerHTML = '<div class="result error"><h3>Error</h3><p>Please enter a phone number</p></div>';
+                        return;
+                    }
+
+                    resultsDiv.innerHTML = '<div class="loading">Searching business records...</div>';
+                    
+                    const response = await fetch('/api/phone-lookup-mvp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        resultsDiv.innerHTML = formatPhoneLookupResults(data);
+                    } else {
+                        resultsDiv.innerHTML = `
+                            <div class="result error">
+                                <h3>Error</h3>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </div>
+                        `;
+                    }
                 } else {
-                    resultsDiv.innerHTML = `
-                        <div class="result error">
-                            <h3>Error</h3>
-                            <pre>${JSON.stringify(data, null, 2)}</pre>
-                        </div>
-                    `;
+                    // Name search
+                    const name = document.getElementById('name').value.trim();
+                    const entity_type = document.getElementById('entity_type').value;
+                    const ein = document.getElementById('ein').value.trim();
+                    
+                    if (!name) {
+                        resultsDiv.innerHTML = '<div class="result error"><h3>Error</h3><p>Please enter a name</p></div>';
+                        return;
+                    }
+
+                    resultsDiv.innerHTML = '<div class="loading">Searching Data Axle API...</div>';
+                    
+                    const response = await fetch('/api/universal-search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, entity_type, ein })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        resultsDiv.innerHTML = `
+                            <div class="result success">
+                                <h3>✓ Search Complete</h3>
+                                <p style="margin: 12px 0; color: #7ee787;">
+                                    Canon ID: <strong>${data.canon_id}</strong>
+                                </p>
+                                <p style="margin-bottom: 12px; color: #c9d1d9;">
+                                    ${data.message || 'Record created. Background enrichment started.'}
+                                </p>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                                <p style="margin-top: 12px; color: #8b949e; font-size: 14px;">
+                                    View full report at: <a href="/clear/${entity_type}/${data.canon_id}" 
+                                    style="color: #58a6ff;">/clear/${entity_type}/${data.canon_id}</a>
+                                </p>
+                            </div>
+                        `;
+                    } else {
+                        resultsDiv.innerHTML = `
+                            <div class="result error">
+                                <h3>Error</h3>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </div>
+                        `;
+                    }
                 }
             } catch (error) {
                 resultsDiv.innerHTML = `
@@ -194,7 +336,7 @@
         }
         
         // Allow Enter key to submit
-        document.getElementById('name').addEventListener('keypress', (e) => {
+        document.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') search();
         });
     </script>
